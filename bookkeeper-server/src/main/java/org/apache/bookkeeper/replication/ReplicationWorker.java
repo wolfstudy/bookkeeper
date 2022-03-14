@@ -357,7 +357,9 @@ public class ReplicationWorker implements Runnable {
 
         boolean deferLedgerLockRelease = false;
 
+        //1. 打开一个 ledger 对象
         try (LedgerHandle lh = admin.openLedgerNoRecovery(ledgerIdToReplicate)) {
+            // 2. 获取这个ledger对象中所有未复制的fragments对象
             Set<LedgerFragment> fragments =
                 getUnderreplicatedFragments(lh, conf.getAuditorLedgerVerificationPercentage());
 
@@ -366,17 +368,20 @@ public class ReplicationWorker implements Runnable {
             }
 
             boolean foundOpenFragments = false;
+            // 3. 开启 for 循环进行复制
             for (LedgerFragment ledgerFragment : fragments) {
                 if (!ledgerFragment.isClosed()) {
                     foundOpenFragments = true;
                     continue;
                 }
+                // 4. 错误 entry 校验，先尝试读取这个 entry 看是否可以读取出来，如果可以，再进行复制，不可以，重试下一个 ledgerFragment
                 if (!tryReadingFaultyEntries(lh, ledgerFragment)) {
                     LOG.error("Failed to read faulty entries, so giving up replicating ledgerFragment {}",
                             ledgerFragment);
                     continue;
                 }
                 try {
+                    // 5. 调用 bookie admin 的接口，开始正式复制ledgerFragment
                     admin.replicateLedgerFragment(lh, ledgerFragment, onReadEntryFailureCallback);
                 } catch (BKException.BKBookieHandleNotAvailableException e) {
                     LOG.warn("BKBookieHandleNotAvailableException while replicating the fragment", e);
@@ -392,6 +397,7 @@ public class ReplicationWorker implements Runnable {
                 return false;
             }
 
+            // 6. 再次获取当前这个 ledger 所有未复制的 fragments，如果没有说明此次复制结束，如果还有说明这次复制操作失败了
             fragments = getUnderreplicatedFragments(lh, conf.getAuditorLedgerVerificationPercentage());
             if (fragments.size() == 0) {
                 LOG.info("Ledger replicated successfully. ledger id is: " + ledgerIdToReplicate);
