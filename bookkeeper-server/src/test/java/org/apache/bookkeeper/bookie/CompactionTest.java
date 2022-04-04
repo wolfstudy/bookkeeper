@@ -1599,6 +1599,32 @@ public abstract class CompactionTest extends BookKeeperClusterTestCase {
         verifyLedger(lhs[0].getId(), 0, lhs[0].getLastAddConfirmed());
     }
 
+    @Test
+    public void testResetCompactRateDynamically() {
+
+        AbstractLogCompactor.Throttler throttler = new AbstractLogCompactor.Throttler(baseConf);
+        int currentRate = this.isThrottleByBytes
+                ? baseConf.getCompactionRateByBytes() : baseConf.getCompactionRateByEntries();
+        assertEquals(currentRate, throttler.getRate(), 0.0001);
+
+        if (this.isThrottleByBytes) {
+            baseConf.setCompactionRateByBytes(currentRate * 2);
+        } else {
+            baseConf.setCompactionRateByEntries(currentRate * 2);
+        }
+        throttler.resetRate();
+        assertEquals(currentRate * 2, throttler.getRate(), 0.0001);
+
+        if (this.isThrottleByBytes) {
+            baseConf.setCompactionRateByBytes(currentRate);
+        } else {
+            baseConf.setCompactionRateByEntries(currentRate);
+        }
+        throttler.resetRate();
+        assertEquals(currentRate, throttler.getRate(), 0.0001);
+
+    }
+    
     private long getDirectorySpaceUsage(File dir) {
         long size = 0;
         for (File file : dir.listFiles()) {

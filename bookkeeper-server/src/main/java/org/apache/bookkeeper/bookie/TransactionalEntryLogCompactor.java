@@ -171,6 +171,7 @@ public class TransactionalEntryLogCompactor extends AbstractLogCompactor {
         void start() throws IOException {
             // scan entry log into compaction log and offset list
             entryLogger.createNewCompactionLog();
+            throttler.resetRate();
             entryLogger.scanEntryLog(metadata.getEntryLogId(), new EntryLogScanner() {
                 @Override
                 public boolean accept(long ledgerId) {
