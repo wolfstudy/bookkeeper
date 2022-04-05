@@ -32,7 +32,7 @@ public class SimpleGauge<T extends Number> {
         this.labels = labels;
     }
 
-    Number getSample() {
+    public Number getSample() {
         return gauge.getSample();
     }
 

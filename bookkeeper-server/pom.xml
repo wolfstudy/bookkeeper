@@ -164,19 +164,21 @@
         <!-- needed by ZooKeeper server -->
        <groupId>io.dropwizard.metrics</groupId>
        <artifactId>metrics-core</artifactId>
-       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.bookkeeper.stats</groupId>
       <artifactId>prometheus-metrics-provider</artifactId>
       <version>${project.parent.version}</version>
-      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.bookkeeper.stats</groupId>
+      <artifactId>barad-metrics-provider</artifactId>
+      <version>${project.parent.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.bookkeeper.http</groupId>
       <artifactId>vertx-http-server</artifactId>
       <version>${project.parent.version}</version>
-      <scope>test</scope>
     </dependency>
   </dependencies>
   <build>
