@@ -6,7 +6,7 @@ import java.util.HashSet;
 import java.util.Set;
 import org.apache.bookkeeper.stats.barad.reporter.BaradMetric;
 
-public class SampleConverter implements IConverter<String, Sample, BaradMetric>{
+public class SampleConverter implements IConverter<String, Sample, BaradMetric> {
 
     private static final Set<String> names = new HashSet<>();
     
@@ -89,29 +89,29 @@ public class SampleConverter implements IConverter<String, Sample, BaradMetric>{
 
         names.add("jvm_gc_collection_seconds_count");
         names.add("jvm_gc_collection_seconds_sum");
-        
+
         //add more metric for process and log4j2
         names.add("process_open_fds");
         names.add("process_max_fds");
         names.add("process_virtual_memory_bytes");
         names.add("process_resident_memory_bytes");
         names.add("log4j2_appender_total");
-        
+
     }
-  
+
 
     @Override
     public BaradMetric convert(String name, Sample sample) {
         BaradMetric baradMetric = new BaradMetric(name);
         baradMetric.setValue(BigDecimal.valueOf(sample.value));
 
-        if(sample.labelNames!=null && sample.labelValues!=null){
-            int bound= Math.min(sample.labelNames.size(),sample.labelValues.size());
-            for(int i=0;i<bound;i++){
-                baradMetric.getDimension().put(sample.labelNames.get(i),sample.labelValues.get(i));
+        if (sample.labelNames != null && sample.labelValues != null) {
+            int bound = Math.min(sample.labelNames.size(), sample.labelValues.size());
+            for (int i = 0; i < bound; i++) {
+                baradMetric.getDimension().put(sample.labelNames.get(i), sample.labelValues.get(i));
             }
         }
-        
+
         //TODO  set component and ip
         return baradMetric;
     }

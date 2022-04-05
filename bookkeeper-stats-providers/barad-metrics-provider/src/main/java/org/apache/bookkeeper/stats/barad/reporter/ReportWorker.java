@@ -42,8 +42,8 @@ public class ReportWorker implements Runnable {
         this.client.close();
     }
 
-    private CompletableFuture<Void> reportMetricsAsync(List<BaradMetric> uploadMetrics) {
-        CompletableFuture<Void> newFuture = new CompletableFuture<>();
+    private void reportMetricsAsync(List<BaradMetric> uploadMetrics) {
+        long start = System.currentTimeMillis();
         try {
             byte[] requestBody = mapper.writeValueAsBytes(uploadMetrics);
             CompletableFuture<okhttp3.Response> future = client.doPostAsync(requestBody);
@@ -52,21 +52,18 @@ public class ReportWorker implements Runnable {
                     try {
                         Response data = mapper.readValue(response.body().string(), Response.class);
                         if (data.getReturnValue() != 0) {
-                            log.error("Barad error response {}", response);
+                            log.error("Barad error cost {}ms response {}", System.currentTimeMillis() - start,
+                                    response);
                         }
                     } catch (Exception ex) {
-                        log.error("Barad response exception", ex);
+                        log.error("Barad response cost {}ms exception", System.currentTimeMillis() - start, ex);
                     }
                 }
-                newFuture.complete(null);
+
             });
         } catch (Exception e) {
-            log.error("reportMetricsAsync exception.", e);
-            newFuture.complete(null);
+            log.error("reportMetricsAsync cost {}ms exception.", System.currentTimeMillis() - start, e);
         }
-
-        return newFuture;
-
     }
 
     @Override
@@ -77,26 +74,21 @@ public class ReportWorker implements Runnable {
                 if (jobs != null && !jobs.isEmpty()) {
                     List<BaradMetric> metrics = new ArrayList<>();
                     jobs.forEach(job -> metrics.addAll(job.getMetrics()));
-                    completeJobs(jobs, null);
                     int batchIndex = 0;
                     int batchCount = 1000;
                     log.debug("Send metrics in {} batches,", metrics.size() / batchCount);
-                    List<CompletableFuture<?>> futures = new ArrayList<>();
+
                     while (batchIndex < metrics.size()) {
                         int endIndex = batchIndex + batchCount;
                         if (endIndex > metrics.size()) {
                             endIndex = metrics.size();
                         }
                         List<BaradMetric> uploadMetrics = metrics.subList(batchIndex, endIndex);
-                        futures.add(reportMetricsAsync(uploadMetrics));
+                        reportMetricsAsync(uploadMetrics);
                         batchIndex += batchCount;
                     }
-                    CompletableFuture<?>[] futureArray = new CompletableFuture[futures.size()];
-                    futures.toArray(futureArray);
-                    CompletableFuture<Void> allCompleteFuture = CompletableFuture.allOf(futureArray);
-                    allCompleteFuture.join();
                 } else {
-                    sleep(500);
+                    sleep(200);
                 }
             }
         } catch (Throwable t) {
@@ -105,17 +97,6 @@ public class ReportWorker implements Runnable {
             log.info("Bye");
             isRunning = false;
         }
-    }
-
-    private void completeJobs(List<JobQueue.Job> jobs, Throwable e) {
-        jobs.stream().filter(job -> job.getNotifyFuture() != null)
-                .forEach(job -> {
-                    if (e != null) {
-                        job.getNotifyFuture().completeExceptionally(e);
-                    } else {
-                        job.getNotifyFuture().complete(null);
-                    }
-                });
     }
 
     private void sleep(long time) {

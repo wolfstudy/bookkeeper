@@ -1,26 +1,19 @@
 
 package org.apache.bookkeeper.stats.barad;
 
-
-import io.prometheus.client.Collector;
-import io.prometheus.client.Collector.MetricFamilySamples;
-import io.prometheus.client.Collector.MetricFamilySamples.Sample;
 import io.prometheus.client.CollectorRegistry;
-import java.util.Enumeration;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.stats.barad.reporter.BaradMetricsReporter;
+import org.apache.bookkeeper.stats.barad.reporter.MetricsReporterConfig;
 import org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider;
-import org.apache.bookkeeper.stats.prometheus.PrometheusTextFormatUtil;
 import org.apache.commons.configuration.Configuration;
 
+@Slf4j
 public class BaradMetricsProvider extends PrometheusMetricsProvider {
 
-    private String url;
 
-    private Integer connectionTimeoutMs;
-
-    private Integer batchSizeLimit;
-
-    private Integer connectionNum;
+    private BaradMetricsReporter metricsReporter;
 
     public BaradMetricsProvider() {
         this(CollectorRegistry.defaultRegistry);
@@ -28,6 +21,10 @@ public class BaradMetricsProvider extends PrometheusMetricsProvider {
 
     public BaradMetricsProvider(CollectorRegistry registry) {
         super(registry);
+        MetricsReporterConfig reporterConfig=new MetricsReporterConfig();
+        //todo test url, ip and compant name
+        reporterConfig.setUrl("todo");
+        metricsReporter = new BaradMetricsReporter(reporterConfig);
     }
 
     @Override
@@ -44,20 +41,15 @@ public class BaradMetricsProvider extends PrometheusMetricsProvider {
     }
 
     void reportMetricToBarad() {
-
-//       PrometheusTextFormatUtil.writeMetricsCollectedByPrometheusClient(writer, registry);
-//
-//        gauges.forEach((sc, gauge) -> PrometheusTextFormatUtil.writeGauge(writer, sc.getScope(), gauge));
-//        counters.forEach((sc, counter) -> PrometheusTextFormatUtil.writeCounter(writer, sc.getScope(), counter));
-//        opStats.forEach((sc, opStatLogger) ->
-//                PrometheusTextFormatUtil.writeOpStat(writer, sc.getScope(), opStatLogger));
-
-        BaradReportUtil.reportRegistry(this.registry);
-        gauges.forEach((sc, gauge) -> BaradReportUtil.reportGauge(sc.getScope(), gauge));
-        counters.forEach((sc, counter) -> BaradReportUtil.reportCounter(sc.getScope(), counter));
-        opStats.forEach((sc, opStatLogger) ->
-                BaradReportUtil.reportOpStat(sc.getScope(), opStatLogger));
-
+        try {
+            metricsReporter.reportRegistry(this.registry);
+            gauges.forEach((sc, gauge) -> metricsReporter.reportGauge(sc.getScope(), gauge));
+            counters.forEach((sc, counter) -> metricsReporter.reportCounter(sc.getScope(), counter));
+            opStats.forEach((sc, opStatLogger) ->
+                    metricsReporter.reportOpStat(sc.getScope(), opStatLogger));
+        } catch (Throwable t) {
+            log.error("report to barad error ", t);
+        }
     }
 
 

@@ -35,7 +35,6 @@ public class OpStatConverter implements IConverter<String, DataSketchesOpStatsLo
     private static final Set<String> names = new HashSet<>();
 
     static {
-        names.add("bookie_journal_JOURNAL_SYNC_count");
         names.add("bookie_journal_JOURNAL_ADD_ENTRY");
         names.add("bookie_journal_JOURNAL_SYNC");
         names.add("bookkeeper_server_ADD_ENTRY_REQUEST");

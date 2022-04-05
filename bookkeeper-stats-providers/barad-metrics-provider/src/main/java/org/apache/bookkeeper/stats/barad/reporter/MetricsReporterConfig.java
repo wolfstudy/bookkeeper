@@ -7,10 +7,10 @@ public class MetricsReporterConfig {
 
     private String url;
 
-    private Integer connectionTimeoutMs;
+    private Integer connectionTimeoutMs = 10 * 000;
 
-    private Integer batchSizeLimit;
+    private Integer batchSizeLimit = 100;
 
-    private Integer connectionNum;
+    private Integer connectionNum = 3;
 
 }
