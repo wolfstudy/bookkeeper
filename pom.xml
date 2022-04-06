@@ -1111,6 +1111,18 @@
         </plugins>
       </build>
     </profile>
+    <profile>
+      <id>mac-apple-silicon</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <nar.aolProperties>src/apple_m1_aol.properties</nar.aolProperties>
+      </properties>
+    </profile>
 
     <profile>
       <id>jdk11-no-spotbugs</id>
