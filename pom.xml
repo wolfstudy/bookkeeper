@@ -1150,4 +1150,13 @@
       </build>
     </profile>
   </profiles>
+
+<!--  add for tencent -->
+  <distributionManagement>
+    <snapshotRepository>
+      <id>tencent-bookkeeper</id>
+      <url>https://mirrors.tencent.com/repository/maven/csig-tdmq</url>
+    </snapshotRepository>
+  </distributionManagement>
+<!--  end for tencent -->
 </project>
