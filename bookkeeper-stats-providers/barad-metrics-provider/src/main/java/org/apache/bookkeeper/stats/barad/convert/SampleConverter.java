@@ -66,7 +66,6 @@ public class SampleConverter implements IConverter<String, Sample, BaradMetric> 
      */
 
     static {
-        //TODO  待删除 init 和 max 可以删除 ，保留 used
         names.add("jvm_memory_bytes_committed");
         names.add("jvm_memory_bytes_init");
         names.add("jvm_memory_bytes_max");
@@ -104,6 +103,8 @@ public class SampleConverter implements IConverter<String, Sample, BaradMetric> 
     public BaradMetric convert(String name, Sample sample) {
         BaradMetric baradMetric = new BaradMetric(name);
         baradMetric.setValue(BigDecimal.valueOf(sample.value));
+        baradMetric.getDimension().put("bkip",bkip);
+        baradMetric.getDimension().put("ip",bkip);
 
         if (sample.labelNames != null && sample.labelValues != null) {
             int bound = Math.min(sample.labelNames.size(), sample.labelValues.size());
@@ -111,8 +112,6 @@ public class SampleConverter implements IConverter<String, Sample, BaradMetric> 
                 baradMetric.getDimension().put(sample.labelNames.get(i), sample.labelValues.get(i));
             }
         }
-
-        //TODO  set component and ip
         return baradMetric;
     }
 

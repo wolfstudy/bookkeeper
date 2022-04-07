@@ -12,6 +12,7 @@ import org.apache.commons.configuration.Configuration;
 @Slf4j
 public class BaradMetricsProvider extends PrometheusMetricsProvider {
 
+    public static final String BARAD_URL = "baradUrl";
 
     private BaradMetricsReporter metricsReporter;
 
@@ -21,16 +22,16 @@ public class BaradMetricsProvider extends PrometheusMetricsProvider {
 
     public BaradMetricsProvider(CollectorRegistry registry) {
         super(registry);
-        MetricsReporterConfig reporterConfig=new MetricsReporterConfig();
-        //todo test url, ip and compant name
-        reporterConfig.setUrl("todo");
-        metricsReporter = new BaradMetricsReporter(reporterConfig);
     }
 
     @Override
     public void start(Configuration conf) {
         super.start(conf);
         // report metric every minute
+        MetricsReporterConfig reporterConfig = new MetricsReporterConfig();
+        reporterConfig.setBaradUrl(conf.getString(BARAD_URL));
+        log.info("barad report config {}",reporterConfig);
+        metricsReporter = new BaradMetricsReporter(reporterConfig);
         this.executor.scheduleAtFixedRate(() -> reportMetricToBarad(),
                 0, 1, TimeUnit.MINUTES);
     }
@@ -43,8 +44,8 @@ public class BaradMetricsProvider extends PrometheusMetricsProvider {
     void reportMetricToBarad() {
         try {
             metricsReporter.reportRegistry(this.registry);
-            gauges.forEach((sc, gauge) -> metricsReporter.reportGauge(sc.getScope(), gauge));
-            counters.forEach((sc, counter) -> metricsReporter.reportCounter(sc.getScope(), counter));
+            metricsReporter.reportGaugeMap(gauges);
+            metricsReporter.reportCounterMap(counters);
             opStats.forEach((sc, opStatLogger) ->
                     metricsReporter.reportOpStat(sc.getScope(), opStatLogger));
         } catch (Throwable t) {

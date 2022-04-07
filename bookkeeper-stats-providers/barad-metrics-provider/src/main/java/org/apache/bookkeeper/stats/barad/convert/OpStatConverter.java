@@ -39,6 +39,22 @@ public class OpStatConverter implements IConverter<String, DataSketchesOpStatsLo
         names.add("bookie_journal_JOURNAL_SYNC");
         names.add("bookkeeper_server_ADD_ENTRY_REQUEST");
         names.add("bookkeeper_server_READ_ENTRY_REQUEST");
+
+
+        names.add("bookie_bookie_zk_delete");
+        names.add("bookie_bookie_zk_create");
+        names.add("bookie_bookie_zk_get_children");
+        names.add("bookie_bookie_zk_get_data");
+
+        names.add("bookkeeper_server_READ_ENTRY_FENCE_REQUEST");
+        names.add("bookkeeper_server_READ_ENTRY_BLOCKED_WAIT");
+        names.add("bookkeeper_server_READ_ENTRY_FENCE_WAIT");
+        
+        names.add("bookkeeper_server_BookieWriteThreadPool_task_queued");
+        names.add("bookkeeper_server_BookieReadThreadPool_task_queued");
+   
+        
+        
     }
 
     @Override
@@ -79,15 +95,23 @@ public class OpStatConverter implements IConverter<String, DataSketchesOpStatsLo
         String newName=name.toLowerCase() + "_" + (success ? "success" : "failure") +
                 "_" + formatQuantile(String.valueOf(quantile));
         BaradMetric baradMetric = new BaradMetric(newName);
+        baradMetric.getDimension().put("bkip",bkip);
+        baradMetric.getDimension().put("ip",bkip);
         baradMetric.getDimension().putAll(opStat.getLabels());
-        
-        baradMetric.setValue(BigDecimal.valueOf(opStat.getQuantileValue(success,quantile)));
+        double value= opStat.getQuantileValue(success,quantile);
+        if( Double.isNaN(value)) {
+            return null;
+        }else {
+            baradMetric.setValue(BigDecimal.valueOf(value));
+        }
         return baradMetric;
     }
 
     private BaradMetric convertSum(DataSketchesOpStatsLogger opStat, String name, Boolean success) {
         String newName=name.toLowerCase() + "_sum_"+ (success ? "success" : "failure");
         BaradMetric baradMetric = new BaradMetric(newName);
+        baradMetric.getDimension().put("bkip",bkip);
+        baradMetric.getDimension().put("ip",bkip);
         baradMetric.getDimension().putAll(opStat.getLabels());
 
         baradMetric.setValue(BigDecimal.valueOf(opStat.getSum(success)));
@@ -97,6 +121,8 @@ public class OpStatConverter implements IConverter<String, DataSketchesOpStatsLo
     private BaradMetric convertCount(DataSketchesOpStatsLogger opStat, String name, Boolean success) {
         String newName=name.toLowerCase() + "_count_"+ (success ? "success" : "failure");
         BaradMetric baradMetric = new BaradMetric(newName);
+        baradMetric.getDimension().put("bkip",bkip);
+        baradMetric.getDimension().put("ip",bkip);
         baradMetric.getDimension().putAll(opStat.getLabels());
         baradMetric.setValue(BigDecimal.valueOf(opStat.getCount(success)));
         return baradMetric;

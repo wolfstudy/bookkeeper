@@ -10,30 +10,49 @@ import lombok.extern.slf4j.Slf4j;
 public class Monitor {
 
     private final ScheduledExecutorService executor;
-    private final AtomicLong totalCount = new AtomicLong();
+    private final AtomicLong counter = new AtomicLong();
 
-    private static final int PERIOD = 5;
+    private static final int PERIOD = 30;
 
-    public Monitor() {
+    private static final Monitor instance;
+
+    private final AtomicLong metricsCount = new AtomicLong(0L);
+
+    public static Monitor getInstance() {
+        return instance;
+    }
+
+    static {
+        instance = new Monitor();
+    }
+
+    private Monitor() {
         executor = Executors.newScheduledThreadPool(1);
     }
 
+    public void addMetricsCount(long count) {
+        metricsCount.addAndGet(count);
+    }
 
-    public void addTotalCount(int count) {
-        totalCount.addAndGet(count);
+
+    public void resetTicker() {
+        counter.set(System.currentTimeMillis());
     }
 
     public void start() {
         executor.scheduleAtFixedRate(() -> {
-            long count = totalCount.get();
-            long countPerSecond = count / PERIOD;
-            log.info("Monitor counter, total = {}, average = {}/s", count, countPerSecond);
-            totalCount.set(0);
+            long last = counter.get();
+            long duration = System.currentTimeMillis() - last;
+            if (duration > PERIOD * 1000) {
+                log.warn("No input message since {}", last);
+            }
+            long metrics = metricsCount.getAndSet(0L);
+            
+            log.warn("metrics uploaded {}", metrics);
         }, 1, PERIOD, TimeUnit.SECONDS);
     }
 
     public void stop() {
         executor.shutdown();
     }
-
 }

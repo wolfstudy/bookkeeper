@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.bookkeeper.stats.barad.reporter.BaradMetric;
+import org.apache.bookkeeper.stats.barad.reporter.NetUtil;
 import org.apache.bookkeeper.stats.prometheus.LongAdderCounter;
 
 public class CounterConverter implements IConverter<String, LongAdderCounter, BaradMetric> {
@@ -21,12 +22,21 @@ public class CounterConverter implements IConverter<String, LongAdderCounter, Ba
         names.add("bookie_read_cache_size");
         names.add("bookie_SERVER_STATUS");
         names.add("bookie_write_cache_size");
+
+        names.add("bookie_gc_MINOR_COMPACTION_COUNT");
+        names.add("bookie_gc_MAJOR_COMPACTION_COUNT");
+
+        names.add("bookie_LEDGER_CACHE_HIT");
+        names.add("bookie_LEDGER_CACHE_MISS");
+        names.add("bookie_LEDGER_CACHE_NUM_EVICTED_LEDGERS");
     }
 
     @Override
     public BaradMetric convert(String name, LongAdderCounter source) {
         BaradMetric metric = new BaradMetric(name);
         metric.getDimension().putAll(source.getLabels());
+        metric.getDimension().put("bkip",bkip);
+        metric.getDimension().put("ip",bkip);
         metric.setValue(BigDecimal.valueOf(source.get()));
         return metric;
     }
