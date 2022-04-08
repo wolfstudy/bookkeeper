@@ -66,22 +66,22 @@ public class TestBaradMetricsProvider {
     @Test
     public void testConvertGauge() {
 
-//        String name = "unit_test_gauge";
-//        Map<String, String> labels = new HashMap<>();
-//        labels.put("labelK1", "labelV1");
-//        labels.put("labelK2", "labelV2");
-//
-//        SimpleGauge<Long> simpleGauge = new SimpleGauge<Long>(new MockGauge(), labels);
-//
-//        GaugeConverter gaugeConverter = new GaugeConverter();
-//        assertTrue(gaugeConverter.canConvert(name));
-//        BaradMetric baradMetric = gaugeConverter.convert(name, simpleGauge);
-//
-//        assertEquals(baradMetric.getName(), name);
-//
-//        assertEquals(baradMetric.getValue(), BigDecimal.valueOf(1.0));
-//        assertTrue(baradMetric.getDimension().keySet().containsAll(labels.keySet()));
-//        assertTrue(System.currentTimeMillis() >= baradMetric.getTimestamp());
+        String name = "unit_test_gauge";
+        Map<String, String> labels = new HashMap<>();
+        labels.put("labelK1", "labelV1");
+        labels.put("labelK2", "labelV2");
+
+        SimpleGauge<Long> simpleGauge = new SimpleGauge<Long>(new MockGauge(), labels);
+
+        GaugeConverter gaugeConverter = new GaugeConverter();
+        assertTrue(gaugeConverter.canConvert(name));
+        BaradMetric baradMetric = gaugeConverter.convert(name, simpleGauge);
+
+        assertEquals(baradMetric.getName(), name);
+
+        assertEquals(baradMetric.getValue(), BigDecimal.valueOf(1.0));
+        assertTrue(baradMetric.getDimension().keySet().containsAll(labels.keySet()));
+        assertTrue(System.currentTimeMillis() >= baradMetric.getTimestamp());
 
     }
 
