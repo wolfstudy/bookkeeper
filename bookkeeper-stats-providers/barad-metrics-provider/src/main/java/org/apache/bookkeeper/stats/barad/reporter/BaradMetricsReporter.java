@@ -169,7 +169,7 @@ public class BaradMetricsReporter implements Reporter<BaradMetric> {
     public void reportOpStat(String name, DataSketchesOpStatsLogger opStat) {
         if (opStatConverter.canConvert(name)) {
             List<BaradMetric> baradMetrics = opStatConverter.multiConvert(name, opStat);
-            Iterables.removeIf(baradMetrics, Predicates.isNull());
+            
             report(baradMetrics);
             for (BaradMetric metric : baradMetrics) {
                 log.info("report {}", metric);
