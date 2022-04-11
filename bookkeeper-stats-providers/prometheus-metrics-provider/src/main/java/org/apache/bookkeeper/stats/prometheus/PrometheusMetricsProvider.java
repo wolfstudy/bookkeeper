@@ -58,7 +58,7 @@ import org.slf4j.LoggerFactory;
  */
 public class PrometheusMetricsProvider implements StatsProvider {
 
-    private ScheduledExecutorService executor;
+    protected ScheduledExecutorService executor;
 
     public static final String PROMETHEUS_STATS_HTTP_ENABLE = "prometheusStatsHttpEnable";
     public static final boolean DEFAULT_PROMETHEUS_STATS_HTTP_ENABLE = true;
@@ -72,16 +72,15 @@ public class PrometheusMetricsProvider implements StatsProvider {
     public static final String PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS = "prometheusStatsLatencyRolloverSeconds";
     public static final int DEFAULT_PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS = 60;
 
-    final CollectorRegistry registry;
-
-    Server server;
+    protected final CollectorRegistry registry;
+    protected Server server;
 
     /*
      * These acts a registry of the metrics defined in this provider
      */
-    final ConcurrentMap<ScopeContext, LongAdderCounter> counters = new ConcurrentHashMap<>();
-    final ConcurrentMap<ScopeContext, SimpleGauge<? extends Number>> gauges = new ConcurrentHashMap<>();
-    final ConcurrentMap<ScopeContext, DataSketchesOpStatsLogger> opStats = new ConcurrentHashMap<>();
+    protected final ConcurrentMap<ScopeContext, LongAdderCounter> counters = new ConcurrentHashMap<>();
+    protected final ConcurrentMap<ScopeContext, SimpleGauge<? extends Number>> gauges = new ConcurrentHashMap<>();
+    protected final ConcurrentMap<ScopeContext, DataSketchesOpStatsLogger> opStats = new ConcurrentHashMap<>();
 
     public PrometheusMetricsProvider() {
         this(CollectorRegistry.defaultRegistry);
