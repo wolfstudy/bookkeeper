@@ -40,7 +40,7 @@ public class ThreadNumUtils {
     public static int adaptThreadNum(int min, int max, int processorSize) {
         if (min <= 0 || min > max) {
             throw new IllegalArgumentException(
-                    String.format("min [%d] number should be positive and  smaller than max [%d]", min, max));
+                    String.format("min [%d] number should be positive and smaller than max [%d]", min, max));
         }
         return Math.min(Math.max(min, processorSize), max);
     }
