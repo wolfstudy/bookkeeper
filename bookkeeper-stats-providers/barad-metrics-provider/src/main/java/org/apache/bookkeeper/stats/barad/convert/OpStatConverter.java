@@ -1,6 +1,8 @@
 package org.apache.bookkeeper.stats.barad.convert;
 
+import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
+import com.google.common.collect.Iterables;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -86,7 +88,8 @@ public class OpStatConverter implements IConverter<String, DataSketchesOpStatsLo
         baradMetrics.add(convertQuantile(opStat, name, false, 0.999));
         baradMetrics.add(convertQuantile(opStat, name, false, 0.9999));
         baradMetrics.add(convertQuantile(opStat, name, false, 1.0));
-        
+
+        Iterables.removeIf(baradMetrics, Predicates.isNull());
         return baradMetrics;
     }
 
