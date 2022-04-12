@@ -1842,7 +1842,7 @@ public class ServerConfiguration extends AbstractConfiguration<ServerConfigurati
      * @return
      */
     public int getNumHighPriorityWorkerThreads() {
-        return getInt(NUM_HIGH_PRIORITY_WORKER_THREADS, 8);
+        return getInt(NUM_HIGH_PRIORITY_WORKER_THREADS, ThreadNumUtils.adaptThreadNum());
     }
 
     /**
