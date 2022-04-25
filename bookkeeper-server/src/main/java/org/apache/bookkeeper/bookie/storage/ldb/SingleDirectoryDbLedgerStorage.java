@@ -164,7 +164,11 @@ public class SingleDirectoryDbLedgerStorage implements CompactableLedgerStorage 
                 DEFAULT_MAX_THROTTLE_TIME_MILLIS);
         maxThrottleTimeNanos = TimeUnit.MILLISECONDS.toNanos(maxThrottleTimeMillis);
 
-        readCache = new ReadCache(allocator, readCacheMaxSize);
+        if(conf.isOhCacheEnable()){
+            readCache =new OhcReadCache(allocator,readCacheSize);
+        }else {
+            readCache = new SegmentReadCache(allocator, readCacheMaxSize);
+        }
 
         ledgerIndex = new LedgerMetadataIndex(conf, KeyValueStorageRocksDB.factory, baseDir, statsLogger);
         entryLocationIndex = new EntryLocationIndex(conf, KeyValueStorageRocksDB.factory, baseDir, statsLogger);
