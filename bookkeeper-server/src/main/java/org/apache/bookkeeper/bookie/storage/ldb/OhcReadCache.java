@@ -16,24 +16,26 @@ import org.caffinitas.ohc.OHCacheStats;
 @Slf4j
 public class OhcReadCache implements ReadCache {
 
-    private final ScheduledExecutorService statsExecutor = Executors
+    private final static ScheduledExecutorService statsExecutor = Executors
             .newSingleThreadScheduledExecutor(new DefaultThreadFactory("read-cache-stats"));
-    private OHCache<LongPairWrapper, ByteBuf> cache = null;
-    private OhcReadCacheStats ohcReadCacheStats;
-    private volatile OHCacheStats oldStats;
+    private static OHCache<LongPairWrapper, ByteBuf> cache = null;
+    private static OhcReadCacheStats ohcReadCacheStats;
+    private static volatile OHCacheStats oldStats;
 
 
     public OhcReadCache(ByteBufAllocator allocator, long maxCacheSize) {
-        this.cache = OHCacheBuilder.<LongPairWrapper, ByteBuf>newBuilder()
-                .keySerializer(new LongPairSerializer())
-                .valueSerializer(new ByteBufSerializer())
-                .eviction(Eviction.LRU)
-                .capacity(maxCacheSize)
-                .hashTableSize(16 * 1024)
-                .build();
-        this.ohcReadCacheStats = new OhcReadCacheStats("ReadCache");
-        this.statsExecutor.scheduleWithFixedDelay(this::printStatsLog, 1, 1, TimeUnit.MINUTES);
-        log.info("ReadCache init maxCacheSize {} allocator: {} ", maxCacheSize, allocator);
+        if(this.cache ==null) {
+            this.cache = OHCacheBuilder.<LongPairWrapper, ByteBuf>newBuilder()
+                    .keySerializer(new LongPairSerializer())
+                    .valueSerializer(new ByteBufSerializer())
+                    .eviction(Eviction.LRU)
+                    .capacity(maxCacheSize)
+                    .hashTableSize(16 * 1024)
+                    .build();
+            this.ohcReadCacheStats = new OhcReadCacheStats("ReadCache");
+            this.statsExecutor.scheduleWithFixedDelay(this::printStatsLog, 1, 1, TimeUnit.MINUTES);
+            log.info("ReadCache init maxCacheSize {} allocator: {} ", maxCacheSize, allocator);
+        }
     }
 
     @Override
@@ -66,7 +68,7 @@ public class OhcReadCache implements ReadCache {
     @Override
     public void close() throws IOException {
         try {
-            this.cache.close();
+            cache.close();
         } catch (Exception e) {
             log.error("close ohc cache failed", e);
         }
@@ -82,6 +84,17 @@ public class OhcReadCache implements ReadCache {
         return cache.size();
     }
 
+    /**
+     * only for unit test use
+     */
+    public void clear() {
+        try {
+            cache.clear();
+        } catch (Exception e) {
+            log.error("clear ohc cache failed", e);
+        }
+    }
+
     public String printStatsLog() {
         String ret = "";
         if (this.cache != null) {
@@ -89,6 +102,7 @@ public class OhcReadCache implements ReadCache {
             if (newStats != null) {
                 this.ohcReadCacheStats.setOHCacheStats(newStats, oldStats);
                 ret = this.ohcReadCacheStats.printStatsLog();
+                log.info(this.ohcReadCacheStats.toString());
                 this.oldStats = newStats;
             }
         }

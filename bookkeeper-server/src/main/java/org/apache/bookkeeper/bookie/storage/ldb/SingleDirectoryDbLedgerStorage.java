@@ -165,7 +165,7 @@ public class SingleDirectoryDbLedgerStorage implements CompactableLedgerStorage 
         maxThrottleTimeNanos = TimeUnit.MILLISECONDS.toNanos(maxThrottleTimeMillis);
 
         if(conf.isOhCacheEnable()){
-            readCache =new OhcReadCache(allocator,readCacheSize);
+            readCache = new OhcReadCache(allocator, readCacheMaxSize);
         }else {
             readCache = new SegmentReadCache(allocator, readCacheMaxSize);
         }

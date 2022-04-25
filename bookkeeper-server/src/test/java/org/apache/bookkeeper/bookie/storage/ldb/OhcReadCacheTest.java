@@ -165,18 +165,18 @@ public class OhcReadCacheTest {
             assertEquals(entry, cache.get(1, i));
         }
 
-        cache.close();
+        cache.clear();
     }
 
     @Test
     public void emptyCache() throws IOException {
-        OhcReadCache cache = new OhcReadCache(UnpooledByteBufAllocator.DEFAULT, 10 * 1024);
+        OhcReadCache cache = new OhcReadCache(UnpooledByteBufAllocator.DEFAULT, 10 * 1024 * 1024);
 
         assertEquals(0, cache.count());
         assertEquals(0, cache.size());
         assertEquals(null, cache.get(0, 0));
 
-        cache.close();
+        cache.clear();
     }
 
 
@@ -187,8 +187,6 @@ public class OhcReadCacheTest {
 
         cache.printStatsLog();
         for (long i = 0; i < 10000; i++) {
-            LongPairWrapper key = LongPairWrapper.get(i, i * i);
-
             if (i % 100 != 0) {
                 ByteBuf value = Unpooled.wrappedBuffer(("hello" + i).getBytes());
                 cache.put(i, i, value);
@@ -212,6 +210,7 @@ public class OhcReadCacheTest {
         cache.printStatsLog();
         System.out.println(cache);
 
+        cache.clear();
 
     }
 
