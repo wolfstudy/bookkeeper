@@ -92,6 +92,7 @@ import org.slf4j.LoggerFactory;
  * Ledger handle contains ledger metadata and is used to access the read and
  * write operations to a ledger.
  */
+@SuppressWarnings("unchecked")
 public class LedgerHandle implements WriteHandle {
     static final Logger LOG = LoggerFactory.getLogger(LedgerHandle.class);
 
@@ -1294,6 +1295,11 @@ public class LedgerHandle implements WriteHandle {
     }
 
     protected void doAsyncAddEntry(final PendingAddOp op) {
+
+        if (op.ctx instanceof HashMap){
+            ((HashMap<String, String>) op.ctx).put("pendingop_start_execute_in_bk",String.valueOf(System.currentTimeMillis()));
+        }
+
         if (throttler != null) {
             throttler.acquire();
         }
@@ -1312,6 +1318,10 @@ public class LedgerHandle implements WriteHandle {
             } else {
                 wasClosed = true;
             }
+        }
+
+        if (op.ctx instanceof HashMap){
+            ((HashMap<String, String>) op.ctx).put("pendingop_start_execute_in_bk_writng",String.valueOf(System.currentTimeMillis()));
         }
 
         if (wasClosed) {
@@ -1345,6 +1355,11 @@ public class LedgerHandle implements WriteHandle {
             }
         } finally {
             ws.recycle();
+        }
+
+
+        if (op.ctx instanceof HashMap){
+            ((HashMap<String, String>) op.ctx).put("pendingop_start_execute_in_bk_wait_done",String.valueOf(System.currentTimeMillis()));
         }
 
         try {
