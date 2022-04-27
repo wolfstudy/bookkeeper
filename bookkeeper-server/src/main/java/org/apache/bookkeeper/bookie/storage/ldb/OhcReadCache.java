@@ -101,8 +101,8 @@ public class OhcReadCache implements ReadCache {
             OHCacheStats newStats = this.cache.stats();
             if (newStats != null) {
                 this.ohcReadCacheStats.setOHCacheStats(newStats, oldStats);
-                ret = this.ohcReadCacheStats.printStatsLog();
                 log.info(this.ohcReadCacheStats.toString());
+                ret = this.ohcReadCacheStats.printStatsLog();
                 this.oldStats = newStats;
             }
         }

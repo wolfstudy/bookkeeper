@@ -3608,7 +3608,7 @@ public class ServerConfiguration extends AbstractConfiguration<ServerConfigurati
      * @return whether enable off heap cache
      */
     public boolean isOhCacheEnable() {
-        return this.getBoolean(OHC_READ_CACHE_ENABLE, true);
+        return this.getBoolean(OHC_READ_CACHE_ENABLE, false);
     }
 
     /**
