@@ -307,6 +307,10 @@ public class ServerConfiguration extends AbstractConfiguration<ServerConfigurati
     // Certificate role based authorization
     protected static final String AUTHORIZED_ROLES = "authorizedRoles";
 
+    // add by tencent
+    protected static final String OHC_READ_CACHE_ENABLE = "ohcReadCacheEnable";
+    // end by tencent
+
     /**
      * Construct a default configuration object.
      */
@@ -3597,4 +3601,25 @@ public class ServerConfiguration extends AbstractConfiguration<ServerConfigurati
         this.setProperty(AUTHORIZED_ROLES, roles);
         return this;
     }
+
+    /**
+     * set wehther enbale off heap cache as the read cache
+     * 
+     * @return whether enable off heap cache
+     */
+    public boolean isOhCacheEnable() {
+        return this.getBoolean(OHC_READ_CACHE_ENABLE, false);
+    }
+
+    /**
+     * Configure use off heap cache as the read cache
+     *
+     * @param whether off heap cache as the read cache
+     * @return server configuration
+     */
+    public ServerConfiguration setOhCacheEnable(boolean ohcReadCacheEnable) {
+        this.setProperty(OHC_READ_CACHE_ENABLE, ohcReadCacheEnable);
+        return this;
+    }
+    
 }
