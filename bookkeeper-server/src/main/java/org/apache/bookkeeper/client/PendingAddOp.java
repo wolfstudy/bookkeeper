@@ -30,6 +30,7 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import java.util.EnumSet;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +56,7 @@ import org.slf4j.LoggerFactory;
  *
  *
  */
+@SuppressWarnings("unchecked")
 class PendingAddOp extends SafeRunnable implements WriteCallback {
     private static final Logger LOG = LoggerFactory.getLogger(PendingAddOp.class);
 
@@ -247,6 +249,12 @@ class PendingAddOp extends SafeRunnable implements WriteCallback {
      */
     @Override
     public void safeRun() {
+
+        if (this.ctx instanceof HashMap) {
+            ((HashMap<String, String>) this.ctx).put("pendingop_start_execute_in_thread",
+                    String.valueOf(System.currentTimeMillis()));
+        }
+
         hasRun = true;
         if (callbackTriggered) {
             // this should only be true if the request was failed due
@@ -273,9 +281,18 @@ class PendingAddOp extends SafeRunnable implements WriteCallback {
         // Iterate over set and trigger the sendWriteRequests
         DistributionSchedule.WriteSet writeSet = lh.distributionSchedule.getWriteSet(entryId);
 
+        if (this.ctx instanceof HashMap){
+            ((HashMap<String, String>) this.ctx).put("pendingop_start_execute_in_ensemble",
+                    String.valueOf(System.currentTimeMillis()));
+        }
+
         try {
             for (int i = 0; i < writeSet.size(); i++) {
                 sendWriteRequest(ensemble, writeSet.get(i));
+                if (this.ctx instanceof HashMap){
+                    ((HashMap<String, String>) this.ctx).put("pendingop_start_execute_in_ensemble" + i,
+                            String.valueOf(System.currentTimeMillis()));
+                }
             }
         } finally {
             writeSet.recycle();
