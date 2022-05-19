@@ -157,6 +157,22 @@ class PendingAddOp extends SafeRunnable implements WriteCallback {
         ++pendingWriteRequests;
     }
 
+    void sendWriteRequest(List<BookieId> ensemble, int bookieIndex,Object extra) {
+        int flags = isRecoveryAdd ? FLAG_RECOVERY_ADD | FLAG_HIGH_PRIORITY : FLAG_NONE;
+        BookieId address = ensemble.get(bookieIndex);
+        Object ctx = bookieIndex;
+        if (extra instanceof HashMap) {
+            ((HashMap<String, String>) extra).put("system_bookieIndex"+address.getId(), String.valueOf(bookieIndex));
+            ctx = extra;
+        }
+
+        clientCtx.getBookieClient().addEntry(address,
+                lh.ledgerId, lh.ledgerKey, entryId, toSend, this, ctx,
+                flags, allowFailFast, lh.writeFlags);
+        ++pendingWriteRequests;
+    }
+
+
     boolean maybeTimeout() {
         if (MathUtils.elapsedNanos(requestTimeNanos) >= clientCtx.getConf().addEntryQuorumTimeoutNanos) {
             timeoutQuorumWait();
@@ -241,7 +257,7 @@ class PendingAddOp extends SafeRunnable implements WriteCallback {
             completed = false;
         }
 
-        sendWriteRequest(ensemble, bookieIndex);
+        sendWriteRequest(ensemble, bookieIndex, this.ctx);
     }
 
     /**
@@ -288,7 +304,7 @@ class PendingAddOp extends SafeRunnable implements WriteCallback {
 
         try {
             for (int i = 0; i < writeSet.size(); i++) {
-                sendWriteRequest(ensemble, writeSet.get(i));
+                sendWriteRequest(ensemble, writeSet.get(i), this.ctx);
                 if (this.ctx instanceof HashMap){
                     ((HashMap<String, String>) this.ctx).put("pendingop_start_execute_in_ensemble" + i,
                             String.valueOf(System.currentTimeMillis()));
@@ -301,7 +317,19 @@ class PendingAddOp extends SafeRunnable implements WriteCallback {
 
     @Override
     public void writeComplete(int rc, long ledgerId, long entryId, BookieId addr, Object ctx) {
-        int bookieIndex = (Integer) ctx;
+        if (this.ctx instanceof HashMap){
+            ((HashMap<String, String>) this.ctx).put("pendingop_start_execute_writeComplete_"+addr.getId(),
+                    String.valueOf(System.currentTimeMillis()));
+        }
+
+        int bookieIndex;
+        if (ctx instanceof HashMap){
+            String bookieIndexVal = ((HashMap<String, String>) ctx).get("system_bookieIndex"+addr.getId());
+            bookieIndex=Integer.parseInt(bookieIndexVal);
+        }else{
+            bookieIndex = (Integer) ctx;
+        }
+
         --pendingWriteRequests;
 
         if (!ensemble.get(bookieIndex).equals(addr)) {
@@ -433,6 +461,12 @@ class PendingAddOp extends SafeRunnable implements WriteCallback {
     }
 
     void submitCallback(final int rc) {
+
+        if (ctx instanceof HashMap){
+            ((HashMap<String, String>) ctx).put("pending_add_op_submitCallback",String.valueOf(System.currentTimeMillis()));
+        }
+
+
         if (LOG.isDebugEnabled()) {
             LOG.debug("Submit callback (lid:{}, eid: {}). rc:{}", lh.getId(), entryId, rc);
         }

@@ -68,6 +68,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -151,6 +152,7 @@ import org.slf4j.MDC;
     help = "Per channel bookie client stats"
 )
 @Sharable
+@SuppressWarnings("unchecked")
 public class PerChannelBookieClient extends ChannelInboundHandlerAdapter {
 
     static final Logger LOG = LoggerFactory.getLogger(PerChannelBookieClient.class);
@@ -812,6 +814,12 @@ public class PerChannelBookieClient extends ChannelInboundHandlerAdapter {
                     .build();
         }
 
+        if (ctx instanceof HashMap){
+            if (channel!=null){
+                ((HashMap<String, String>) ctx).put("bookie_client_build_tcp_request"+channel.remoteAddress(),String.valueOf(System.currentTimeMillis()));
+            }
+        }
+
         putCompletionKeyValue(completionKey,
                               acquireAddCompletion(completionKey,
                                                    cb, ctx, ledgerId, entryId));
@@ -825,6 +833,10 @@ public class PerChannelBookieClient extends ChannelInboundHandlerAdapter {
         } else {
             // addEntry times out on backpressure
             writeAndFlush(c, completionKey, request, allowFastFail);
+            if (ctx instanceof HashMap){
+                ((HashMap<String, String>) ctx).put("bookie_client_write_tcp_request"+c.remoteAddress(),String.valueOf(System.currentTimeMillis()));
+            }
+
         }
     }
 

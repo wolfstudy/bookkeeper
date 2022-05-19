@@ -37,6 +37,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 import java.io.IOException;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -78,6 +79,7 @@ import org.slf4j.LoggerFactory;
  * Implements the client-side part of the BookKeeper protocol.
  *
  */
+@SuppressWarnings("unchecked")
 public class BookieClientImpl implements BookieClient, PerChannelBookieClientFactory {
     static final Logger LOG = LoggerFactory.getLogger(BookieClientImpl.class);
 
@@ -420,6 +422,9 @@ public class BookieClientImpl implements BookieClient, PerChannelBookieClientFac
             if (rc != BKException.Code.OK) {
                 bookieClient.completeAdd(rc, ledgerId, entryId, addr, cb, ctx);
             } else {
+                if (ctx instanceof HashMap){
+                    ((HashMap<String, String>) ctx).put("bookie_client_connection_ok"+addr.getId(),String.valueOf(System.currentTimeMillis()));
+                }
                 pcbc.addEntry(ledgerId, masterKey, entryId,
                               toSend, cb, ctx, options, allowFastFail, writeFlags);
             }
