@@ -79,12 +79,18 @@ class WriteEntryProcessorV3 extends PacketProcessorBaseV3 {
             @Override
             public void writeComplete(int rc, long ledgerId, long entryId,
                                       BookieId addr, Object ctx) {
+                long elapsedNanos = MathUtils.elapsedNanos(startTimeNanos);
                 if (BookieProtocol.EOK == rc) {
                     requestProcessor.getRequestStats().getAddEntryStats()
-                        .registerSuccessfulEvent(MathUtils.elapsedNanos(startTimeNanos), TimeUnit.NANOSECONDS);
+                        .registerSuccessfulEvent(elapsedNanos, TimeUnit.NANOSECONDS);
                 } else {
                     requestProcessor.getRequestStats().getAddEntryStats()
-                        .registerFailedEvent(MathUtils.elapsedNanos(startTimeNanos), TimeUnit.NANOSECONDS);
+                        .registerFailedEvent(elapsedNanos, TimeUnit.NANOSECONDS);
+                }
+
+                if (elapsedNanos > TimeUnit.SECONDS.toNanos(1)) {
+                    logger.warn("WriteEntryTimout messageId {}:{} elapsedMs {}", ledgerId, entryId,
+                            TimeUnit.NANOSECONDS.toMillis(elapsedNanos));
                 }
 
                 StatusCode status;

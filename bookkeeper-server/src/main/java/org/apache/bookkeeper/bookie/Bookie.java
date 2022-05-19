@@ -1318,38 +1318,49 @@ public class Bookie extends BookieCriticalThread {
     private void addEntryInternal(LedgerDescriptor handle, ByteBuf entry,
                                   boolean ackBeforeSync, WriteCallback cb, Object ctx, byte[] masterKey)
             throws IOException, BookieException, InterruptedException {
+        long startNanoTime =MathUtils.nowInNano();
         long ledgerId = handle.getLedgerId();
         long entryId = handle.addEntry(entry);
+      
 
-        bookieStats.getWriteBytes().add(entry.readableBytes());
+                try {
+                    bookieStats.getWriteBytes().add(entry.readableBytes());
 
-        // journal `addEntry` should happen after the entry is added to ledger storage.
-        // otherwise the journal entry can potentially be rolled before the ledger is created in ledger storage.
-        if (masterKeyCache.get(ledgerId) == null) {
-            // Force the load into masterKey cache
-            byte[] oldValue = masterKeyCache.putIfAbsent(ledgerId, masterKey);
-            if (oldValue == null) {
-                // new handle, we should add the key to journal ensure we can rebuild
-                ByteBuffer bb = ByteBuffer.allocate(8 + 8 + 4 + masterKey.length);
-                bb.putLong(ledgerId);
-                bb.putLong(METAENTRY_ID_LEDGER_KEY);
-                bb.putInt(masterKey.length);
-                bb.put(masterKey);
-                bb.flip();
+                    // journal `addEntry` should happen after the entry is added to ledger storage.
+                    // otherwise the journal entry can potentially be rolled before the ledger is created in ledger storage.
+                    if (masterKeyCache.get(ledgerId) == null) {
+                        // Force the load into masterKey cache
+                        byte[] oldValue = masterKeyCache.putIfAbsent(ledgerId, masterKey);
+                        if (oldValue == null) {
+                            // new handle, we should add the key to journal ensure we can rebuild
+                            ByteBuffer bb = ByteBuffer.allocate(8 + 8 + 4 + masterKey.length);
+                            bb.putLong(ledgerId);
+                            bb.putLong(METAENTRY_ID_LEDGER_KEY);
+                            bb.putInt(masterKey.length);
+                            bb.put(masterKey);
+                            bb.flip();
 
-                getJournal(ledgerId).logAddEntry(bb, false /* ackBeforeSync */, new NopWriteCallback(), null);
-            }
-        }
+                            getJournal(ledgerId).logAddEntry(bb, false /* ackBeforeSync */, new NopWriteCallback(),
+                                    null);
+                        }
+                    }
 
-        if (!writeDataToJournal) {
-            cb.writeComplete(0, ledgerId, entryId, null, ctx);
-            return;
-        }
+                    if (!writeDataToJournal) {
+                        cb.writeComplete(0, ledgerId, entryId, null, ctx);
+                        return;
+                    }
 
-        if (LOG.isTraceEnabled()) {
-            LOG.trace("Adding {}@{}", entryId, ledgerId);
-        }
-        getJournal(ledgerId).logAddEntry(entry, ackBeforeSync, cb, ctx);
+                    if (LOG.isTraceEnabled()) {
+                        LOG.trace("Adding {}@{}", entryId, ledgerId);
+                    }
+                    getJournal(ledgerId).logAddEntry(entry, ackBeforeSync, cb, ctx);
+                }finally {
+                    long elapsedNanos =MathUtils.elapsedNanos(startNanoTime);
+                    if (elapsedNanos > TimeUnit.SECONDS.toNanos(1)) {
+                        LOG.warn("AddEntryInternalTimout messageId {}:{} elapsedMs {}", ledgerId, entryId,
+                                TimeUnit.NANOSECONDS.toMillis(elapsedNanos));
+                    }
+                }
     }
 
     /**
@@ -1468,6 +1479,9 @@ public class Bookie extends BookieCriticalThread {
             } else {
                 bookieStats.getAddEntryStats().registerFailedEvent(elapsedNanos, TimeUnit.NANOSECONDS);
                 bookieStats.getAddBytesStats().registerFailedValue(entrySize);
+            }
+            if (elapsedNanos > TimeUnit.SECONDS.toNanos(1)) {
+                LOG.warn("AddEntryTimout elapsedMs {}", TimeUnit.NANOSECONDS.toMillis(elapsedNanos));
             }
 
             entry.release();
