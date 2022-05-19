@@ -1480,9 +1480,8 @@ public class Bookie extends BookieCriticalThread {
                 bookieStats.getAddEntryStats().registerFailedEvent(elapsedNanos, TimeUnit.NANOSECONDS);
                 bookieStats.getAddBytesStats().registerFailedValue(entrySize);
             }
-            if (requestNanos > TimeUnit.SECONDS.toNanos(1)) {
-                LOG.warn("AddEntryTimout messageId {}:{} elapsedMs {}", ledgerId, entryId,
-                        TimeUnit.NANOSECONDS.toMillis(elapsedNanos));
+            if (elapsedNanos > TimeUnit.SECONDS.toNanos(1)) {
+                LOG.warn("AddEntryTimout elapsedMs {}", TimeUnit.NANOSECONDS.toMillis(elapsedNanos));
             }
 
             entry.release();
