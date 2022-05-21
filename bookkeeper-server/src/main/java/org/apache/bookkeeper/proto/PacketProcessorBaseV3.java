@@ -92,6 +92,10 @@ public abstract class PacketProcessorBaseV3 extends SafeRunnable {
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
                 long writeElapsedNanos = MathUtils.elapsedNanos(writeNanos);
+                if (TimeUnit.NANOSECONDS.toMillis(writeElapsedNanos) > 500) {
+                    LOGGER.warn("WriteEntryTimout to netty elapsedMs {}",
+                            TimeUnit.NANOSECONDS.toMillis(writeElapsedNanos));
+                }
                 if (!future.isSuccess()) {
                     requestProcessor.getRequestStats().getChannelWriteStats()
                         .registerFailedEvent(writeElapsedNanos, TimeUnit.NANOSECONDS);
