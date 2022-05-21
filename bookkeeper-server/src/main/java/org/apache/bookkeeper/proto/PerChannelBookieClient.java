@@ -1470,6 +1470,10 @@ public class PerChannelBookieClient extends ChannelInboundHandlerAdapter {
             }
         } else {
             long orderingKey = completionValue.ledgerId;
+
+            if (completionValue.ctx instanceof HashMap){
+                ((HashMap<String, String>) completionValue.ctx).put("bookeeper_readV3Response",String.valueOf(System.currentTimeMillis()));
+            }
             executor.executeOrdered(orderingKey, new SafeRunnable() {
                 @Override
                 public void safeRun() {
