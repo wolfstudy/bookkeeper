@@ -39,6 +39,7 @@ import org.apache.bookkeeper.replication.ReplicationException.UnavailableExcepti
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.annotations.StatsDoc;
+import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -190,8 +191,14 @@ public class AuditorElector {
                         Thread.currentThread().interrupt();
                         submitShutdownTask();
                     } catch (Exception e) {
-                        LOG.error("Exception while performing auditor election", e);
-                        submitShutdownTask();
+                        if (e.getCause() instanceof KeeperException.ConnectionLossException
+                                || e.getCause() instanceof KeeperException.SessionExpiredException) {
+                            LOG.error("ConnectionLossException while performing auditor election,we will retry", e);
+                            submitElectionTask();
+                        } else {
+                            LOG.error("Exception while performing auditor election", e);
+                            submitShutdownTask();
+                        }
                     }
                 }
             };
@@ -206,8 +213,8 @@ public class AuditorElector {
     private void handleAuditorEvent(LedgerAuditorManager.AuditorEvent e) {
         switch (e) {
             case SessionLost:
-                LOG.error("Lost ZK connection, shutting down");
-                submitShutdownTask();
+                LOG.error("Lost ZK connection, we need to retry");
+                submitElectionTask();
                 break;
 
             case VoteWasDeleted:
