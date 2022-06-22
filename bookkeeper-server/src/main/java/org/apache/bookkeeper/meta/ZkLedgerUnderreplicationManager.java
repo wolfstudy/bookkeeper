@@ -636,6 +636,10 @@ public class ZkLedgerUnderreplicationManager implements LedgerUnderreplicationMa
             }
         } catch (KeeperException.NoNodeException nne) {
             // this is ok
+        } catch (KeeperException.ConnectionLossException | KeeperException.SessionExpiredException ke) {
+            LOG.error("Error deleting underreplicated ledger lock,we need to retry", ke);
+            waitBackOffTime(1000);
+            releaseUnderreplicatedLedger(ledgerId);
         } catch (KeeperException ke) {
             LOG.error("Error deleting underreplicated ledger lock", ke);
             throw new ReplicationException.UnavailableException("Error contacting zookeeper", ke);
@@ -644,6 +648,14 @@ public class ZkLedgerUnderreplicationManager implements LedgerUnderreplicationMa
             throw new ReplicationException.UnavailableException("Interrupted while connecting zookeeper", ie);
         }
         heldLocks.remove(ledgerId);
+    }
+
+    private static void waitBackOffTime(long backoffMs) {
+        try {
+            Thread.sleep(backoffMs);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     @Override
