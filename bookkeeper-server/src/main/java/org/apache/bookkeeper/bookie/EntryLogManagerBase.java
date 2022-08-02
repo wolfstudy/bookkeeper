@@ -44,6 +44,8 @@ abstract class EntryLogManagerBase implements EntryLogManager {
     private final List<EntryLogger.EntryLogListener> listeners;
     /**
      * The maximum size of a entry logger file.
+     *
+     * 这个参数决定了单个 entry log 文件的最大大小，从配置文件读取，默认配置是 1GB
      */
     final long logSizeLimit;
 
@@ -82,6 +84,7 @@ abstract class EntryLogManagerBase implements EntryLogManager {
         return (logChannel.getLogId() << 32L) | pos;
     }
 
+    // 该函数会检查 entry log 是否达到对应配置的大小
     boolean reachEntryLogLimit(BufferedLogChannel logChannel, long size) {
         if (logChannel == null) {
             return false;

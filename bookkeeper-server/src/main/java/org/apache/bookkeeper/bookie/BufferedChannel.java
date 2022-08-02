@@ -33,6 +33,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Provides a buffering layer in front of a FileChannel.
+ *
+ * 这里的 BufferedChannel 是对原生的 FileChannel 的包装
  */
 public class BufferedChannel extends BufferedReadChannel implements Closeable {
     /**

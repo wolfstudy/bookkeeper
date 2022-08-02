@@ -23,6 +23,8 @@ import java.nio.channels.FileChannel;
 /**
  * A {@code BufferedChannelBase} adds functionality to an existing file channel, the ability
  * to buffer the input and output data. This class is a base class for wrapping the {@link FileChannel}.
+ *
+ * 在原生 FileChannel 的基础上增加输入输出缓冲的能力
  */
 public abstract class BufferedChannelBase {
     static class BufferedChannelClosedException extends IOException {

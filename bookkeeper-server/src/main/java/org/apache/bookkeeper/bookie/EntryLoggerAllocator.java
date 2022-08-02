@@ -73,6 +73,7 @@ class EntryLoggerAllocator {
         this.ledgerDirsManager = ledgerDirsManager;
         this.preallocatedLogId = logId;
         this.recentlyCreatedEntryLogsStatus = recentlyCreatedEntryLogsStatus;
+        // 是否开启 entry log 预分配的策略，默认是开启的
         this.entryLogPreAllocationEnabled = conf.isEntryLogFilePreAllocationEnabled();
         this.allocatorExecutor = Executors.newSingleThreadExecutor();
 
@@ -81,6 +82,8 @@ class EntryLoggerAllocator {
         // within the same JVM. All of these Bookie instances access this header
         // so there can be race conditions when entry logs are rolled over and
         // this header buffer is cleared before writing it into the new logChannel.
+
+        // 在初始化 EntryLog 分配器的时候就写入如下 header 信息，当发生 logChannel 对象切换的时候，下述 header 信息会被清除掉
         logfileHeader.writeBytes("BKLO".getBytes(UTF_8));
         logfileHeader.writeInt(EntryLogger.HEADER_CURRENT_VERSION);
         logfileHeader.writerIndex(EntryLogger.LOGFILE_HEADER_SIZE);
@@ -120,6 +123,7 @@ class EntryLoggerAllocator {
                     }
                 }
                 // preallocate a new log in background upon every call
+                // 后台线程来执行预分配 EntryLog 的调用操作
                 preallocation = allocatorExecutor.submit(() -> allocateNewLog(dirForNextEntryLog));
                 return bc;
             }
@@ -138,18 +142,24 @@ class EntryLoggerAllocator {
 
     /**
      * Allocate a new log file.
+     *
+     * 分配一个新的EntryLog文件
      */
     private synchronized BufferedLogChannel allocateNewLog(File dirForNextEntryLog, String suffix) throws IOException {
+        // 获取 entry log 创建的位置
         List<File> ledgersDirs = ledgerDirsManager.getAllLedgerDirs();
         String logFileName;
         // It would better not to overwrite existing entry log files
+        // 引入 testLogFile 避免覆盖之前创建出来的 entry log 文件
         File testLogFile = null;
         do {
+            // entry log 文件名字的生成过程
             if (preallocatedLogId >= Integer.MAX_VALUE) {
                 preallocatedLogId = 0;
             } else {
                 ++preallocatedLogId;
             }
+            // 使用 16 进制递增的方式生成 entry log 文件名字
             logFileName = Long.toHexString(preallocatedLogId) + suffix;
             for (File dir : ledgersDirs) {
                 testLogFile = new File(dir, logFileName);
@@ -165,9 +175,13 @@ class EntryLoggerAllocator {
         File newLogFile = new File(dirForNextEntryLog, logFileName);
         FileChannel channel = new RandomAccessFile(newLogFile, "rw").getChannel();
 
+        // 构造一个新的 LogChannel 对象
         BufferedLogChannel logChannel = new BufferedLogChannel(byteBufAllocator, channel, conf.getWriteBufferBytes(),
                 conf.getReadBufferBytes(), preallocatedLogId, newLogFile, conf.getFlushIntervalInBytes());
-        logfileHeader.readerIndex(0);
+
+
+        logfileHeader.readerIndex(0); // 用来控制读写的位置
+        // 将 entryLog 的 header 信息写入 logChannel 中
         logChannel.write(logfileHeader);
 
         for (File f : ledgersDirs) {

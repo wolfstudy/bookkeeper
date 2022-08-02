@@ -27,12 +27,14 @@ import org.apache.bookkeeper.util.collections.ConcurrentLongLongHashMap;
 
 /**
  * Records the total size, remaining size and the set of ledgers that comprise a entry log.
+ *
+ * EntryLog 元数据信息
  */
 public class EntryLogMetadata {
-    private final long entryLogId;
-    private long totalSize;
-    private long remainingSize;
-    private final ConcurrentLongLongHashMap ledgersMap;
+    private final long entryLogId; // entry log 的 ID，是预生成的（preallocatedLogId）
+    private long totalSize; // 总大小
+    private long remainingSize; // 剩余大小
+    private final ConcurrentLongLongHashMap ledgersMap; // 记录 LedgerID 以及对应 Ledger 大小
 
     public EntryLogMetadata(long logId) {
         this.entryLogId = logId;

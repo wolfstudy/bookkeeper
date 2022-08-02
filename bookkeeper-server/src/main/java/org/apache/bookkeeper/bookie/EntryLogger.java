@@ -221,14 +221,17 @@ public class EntryLogger {
 
     private final CopyOnWriteArrayList<EntryLogListener> listeners = new CopyOnWriteArrayList<EntryLogListener>();
 
+    // EntryLog 文件 4 字节的版本信息如下
     private static final int HEADER_V0 = 0; // Old log file format (no ledgers map index)
     private static final int HEADER_V1 = 1; // Introduced ledger map index
     static final int HEADER_CURRENT_VERSION = HEADER_V1;
 
+    // EntryLog 文件的 Header 信息
     private static class Header {
-        final int version;
-        final long ledgersMapOffset;
-        final int ledgersCount;
+        // 在预分配 EntryLog 的时候，就固定的将4字节的"BKLO"签名信息写入
+        final int version; // 4字节的 header version
+        final long ledgersMapOffset; // 8字节的 Ledgers Map 信息
+        final int ledgersCount; // 4字节的 ledgers 信息
 
         Header(int version, long ledgersMapOffset, int ledgersCount) {
             this.version = version;
@@ -243,7 +246,7 @@ public class EntryLogger {
      *
      * <pre>
      * Header is composed of:
-     * Fingerprint: 4 bytes "BKLO"
+     * Fingerprint: 4 bytes "BKLO" // 在预分配 EntryLog 的时候，就固定的将4字节的签名信息写入
      * Log file HeaderVersion enum: 4 bytes
      * Ledger map offset: 8 bytes
      * Ledgers Count: 4 bytes

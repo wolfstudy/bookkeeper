@@ -28,11 +28,16 @@ import java.util.List;
 
 import org.apache.bookkeeper.bookie.EntryLogger.BufferedLogChannel;
 
+/**
+ * EntryLogManager 主要抽象了 Entry Log 的接口
+ */
 interface EntryLogManager {
 
     /*
      * add entry to the corresponding entrylog and return the position of
      * the entry in the entrylog
+     *
+     * 添加对应的 entry 到相应的 entry log中然后返回这个 entry 在 entry log 中写入的位置
      */
     long addEntry(long ledger, ByteBuf entry, boolean rollLog) throws IOException;
 
