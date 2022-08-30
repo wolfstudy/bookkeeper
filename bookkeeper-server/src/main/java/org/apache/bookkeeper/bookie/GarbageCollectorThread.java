@@ -58,8 +58,10 @@ public class GarbageCollectorThread extends SafeRunnable {
     private static final int SECOND = 1000;
 
     // Maps entry log files to the set of ledgers that comprise the file and the size usage per ledger
+    // key 是 EntryLog file ID
     private Map<Long, EntryLogMetadata> entryLogMetaMap = new ConcurrentHashMap<Long, EntryLogMetadata>();
 
+    // 驱动 GC Compactor 的线程
     private final ScheduledExecutorService gcExecutor;
     Future<?> scheduledFuture = null;
 
@@ -123,6 +125,7 @@ public class GarbageCollectorThread extends SafeRunnable {
 
     /**
      * Create a garbage collector thread.
+     * 构造函数
      *
      * @param conf
      *          Server Configuration Object.
@@ -130,6 +133,7 @@ public class GarbageCollectorThread extends SafeRunnable {
      */
     public GarbageCollectorThread(ServerConfiguration conf, LedgerManager ledgerManager,
             final CompactableLedgerStorage ledgerStorage, StatsLogger statsLogger) throws IOException {
+        // 创建一个单线程执行程序，它可安排在给定延迟后运行命令或者定期地执行任务。可保证顺序地执行各个任务，并且在任意给定的时间不会有多个线程是活动的。
         this(conf, ledgerManager, ledgerStorage, statsLogger,
                 Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("GarbageCollectorThread")));
     }
@@ -152,6 +156,7 @@ public class GarbageCollectorThread extends SafeRunnable {
 
         this.entryLogger = ledgerStorage.getEntryLogger();
         this.ledgerStorage = ledgerStorage;
+        // GC 线程定期执行的时间间隔
         this.gcWaitTime = conf.getGcWaitTime();
 
         this.numActiveEntryLogs = 0;
@@ -351,6 +356,7 @@ public class GarbageCollectorThread extends SafeRunnable {
         doGcLedgers();
 
         // gc entry logs
+        // 这里的行为，更多的是尝试性的先去迭代一下本地所有的 EntryLog 对象，看是否有 EntryLog 已经可以直接回收了
         doGcEntryLogs();
 
         if (suspendMajor) {
@@ -360,6 +366,9 @@ public class GarbageCollectorThread extends SafeRunnable {
             LOG.info("Disk full, suspend minor compaction to slow down filling disk.");
         }
 
+        // 默认 minor 和 major GC 都开启了的，minor GC的阈值是 20%，major GC 的阈值是 80%
+        // minor GC 触发的间隔为 3600 秒（1小时）
+        // major GC 触发的间隔为 86400 秒（24小时）
         long curTime = System.currentTimeMillis();
         if (((isForceMajorCompactionAllow && force)
                 || (enableMajorCompaction && (force || curTime - lastMajorCompactionTime > majorCompactionInterval)))
@@ -367,6 +376,7 @@ public class GarbageCollectorThread extends SafeRunnable {
             // enter major compaction
             LOG.info("Enter major compaction, suspendMajor {}", suspendMajor);
             majorCompacting.set(true);
+            // 回收的核心逻辑函数，majorCompactionMaxTimeMillis 默认为 -1，即要等到所有的 compactor 都扫描执行完才退出
             doCompactEntryLogs(majorCompactionThreshold, majorCompactionMaxTimeMillis);
             lastMajorCompactionTime = System.currentTimeMillis();
             // and also move minor compaction time
@@ -379,6 +389,7 @@ public class GarbageCollectorThread extends SafeRunnable {
             // enter minor compaction
             LOG.info("Enter minor compaction, suspendMinor {}", suspendMinor);
             minorCompacting.set(true);
+            // 回收的核心逻辑函数， minorCompactionMaxTimeMillis  默认为 -1，即要等到所有的 compactor 都扫描执行完才退出
             doCompactEntryLogs(minorCompactionThreshold, minorCompactionMaxTimeMillis);
             lastMinorCompactionTime = System.currentTimeMillis();
             gcStats.getMinorCompactionCounter().inc();
@@ -410,12 +421,17 @@ public class GarbageCollectorThread extends SafeRunnable {
         AtomicLong totalEntryLogSizeAcc = new AtomicLong(0L);
 
         // Loop through all of the entry logs and remove the non-active ledgers.
+        // entryLogMetaMap 这个 Map 记录了整个 EntryLog 从 EntryLogID 到 EntryMeta 的映射关系。
         entryLogMetaMap.forEach((entryLogId, meta) -> {
+           // 先去看看当前的 EntryLog Meta 中记录的有哪些 ledgers 是可以删除的，这里操作的是 EntryLog Meta 中的 ledgersMap 对象
            removeIfLedgerNotExists(meta);
+
+           // 判断 EntryLog Meta 中的 ledgersMap 对象是否还有元素。
            if (meta.isEmpty()) {
                // This means the entry log is not associated with any active ledgers anymore.
                // We can remove this entry log file now.
                LOG.info("Deleting entryLogId " + entryLogId + " as it has no active ledgers!");
+               // 当当前的 EntryLog 中没有任何 Ledgers 对象时，直接调用删除 EntryLog 的接口进行删除操作。
                removeEntryLog(entryLogId);
                gcStats.getReclaimedSpaceViaDeletes().add(meta.getTotalSize());
            }
@@ -431,6 +447,7 @@ public class GarbageCollectorThread extends SafeRunnable {
         meta.removeLedgerIf((entryLogLedger) -> {
             // Remove the entry log ledger from the set if it isn't active.
             try {
+                // ledgerStorage为专门为压缩定制的 CompactableLedgerStorage，继承了 LedgerStorage 接口
                 return !ledgerStorage.ledgerExists(entryLogLedger);
             } catch (IOException e) {
                 LOG.error("Error reading from ledger storage", e);
@@ -447,6 +464,8 @@ public class GarbageCollectorThread extends SafeRunnable {
      * Those entry log files whose remaining size percentage is higher than threshold
      * would not be compacted.
      * </p>
+     *
+     * 根据 minor GC 和 major GC 不同的触发阈值以及最大允许的时间来处理 EntryLog 的回收
      */
     @VisibleForTesting
     void doCompactEntryLogs(double threshold, long maxTimeMillis) {
@@ -454,9 +473,12 @@ public class GarbageCollectorThread extends SafeRunnable {
 
         // sort the ledger meta by usage in ascending order.
         List<EntryLogMetadata> logsToCompact = new ArrayList<EntryLogMetadata>();
+        // 开始之前首先把本地缓存的 entryLogMetaMap 都添加进来
         logsToCompact.addAll(entryLogMetaMap.values());
+        // 按照使用率做一个排序
         logsToCompact.sort(Comparator.comparing(EntryLogMetadata::getUsage));
 
+        // 默认分为 10个 buckets（[10% 20% 30% 40% 50% 60% 70% 80% 90% 100%]）
         final int numBuckets = 10;
         int[] entryLogUsageBuckets = new int[numBuckets];
         int[] compactedBuckets = new int[numBuckets];
@@ -465,14 +487,21 @@ public class GarbageCollectorThread extends SafeRunnable {
         long end = start;
         long timeDiff = 0;
 
+        // 迭代entryLogMetaMap的临时对象：logsToCompact
         for (EntryLogMetadata meta : logsToCompact) {
             int bucketIndex = calculateUsageIndex(numBuckets, meta.getUsage());
             entryLogUsageBuckets[bucketIndex]++;
 
+            // 更新 timeDiff 的值，为下面的条件2服务
             if (timeDiff < maxTimeMillis) {
                 end = System.currentTimeMillis();
                 timeDiff = end - start;
             }
+            // 是否继续执行 compact 主要由如下三个条件触发：
+            // 1，meta.getUsage() >= threshold 看是否达到指定的阈值
+            // 2， (maxTimeMillis > 0 && timeDiff > maxTimeMillis) 看是否达到预设的 GC compaction 最大执行的时间
+            // 3， 是否为 running 的状态
+            // 所以当 maxTimeMillis 设置为-1时，条件2永远无法为true，即只有达到预设的 GC 阈值才会退出 compactor 的操作
             if (meta.getUsage() >= threshold || (maxTimeMillis > 0 && timeDiff > maxTimeMillis) || !running) {
                 // We allow the usage limit calculation to continue so that we get a accurate
                 // report of where the usage was prior to running compaction.
@@ -484,6 +513,7 @@ public class GarbageCollectorThread extends SafeRunnable {
             }
 
             long priorRemainingSize = meta.getRemainingSize();
+            // 真正触发回收的核心逻辑
             compactEntryLog(meta);
             gcStats.getReclaimedSpaceViaCompaction().add(meta.getTotalSize() - priorRemainingSize);
             compactedBuckets[bucketIndex]++;
@@ -496,6 +526,9 @@ public class GarbageCollectorThread extends SafeRunnable {
                 LOG.debug("Compaction ran for {}ms but was limited by {}ms", timeDiff, maxTimeMillis);
             }
         }
+        // entryLogUsageBuckets：没压缩之前使用的是多少
+        // compactedBuckets：压缩之后的值是多少
+        // cost：该次压缩总共话费了多少时间（System.currentTimeMillis() - start）
         LOG.info(
                 "Compaction: entry log usage buckets[10% 20% 30% 40% 50% 60% 70% 80% 90% 100%] = {}, compacted {}, cost"
                         + " {}ms",
@@ -536,6 +569,10 @@ public class GarbageCollectorThread extends SafeRunnable {
     /**
      * Remove entry log.
      *
+     * 移除 EntryLog 分为两步：
+     * 1，先去调用 OS File 去删除系统中的 EntryLog 文件
+     * 2，再去删除本地 entryLogMetaMap 中对应的元素
+     *
      * @param entryLogId
      *          Entry Log File Id
      */
@@ -543,6 +580,7 @@ public class GarbageCollectorThread extends SafeRunnable {
         // remove entry log file successfully
         if (entryLogger.removeEntryLog(entryLogId)) {
             LOG.info("Removing entry log metadata for {}", entryLogId);
+            // 如果删除成功，那么从本地的entryLogMetaMap中移除当前 EntryLog 的映射
             entryLogMetaMap.remove(entryLogId);
         }
     }
@@ -558,6 +596,7 @@ public class GarbageCollectorThread extends SafeRunnable {
         // by shutdown during compaction. otherwise it will receive
         // ClosedByInterruptException which may cause index file & entry logger
         // closed and corrupted.
+        // 确保是同步操作
         if (!compacting.compareAndSet(false, true)) {
             // set compacting flag failed, means compacting is true now
             // indicates that compaction is in progress for this EntryLogId.

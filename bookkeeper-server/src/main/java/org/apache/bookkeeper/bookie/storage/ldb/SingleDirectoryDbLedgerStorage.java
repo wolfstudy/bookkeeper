@@ -136,6 +136,7 @@ public class SingleDirectoryDbLedgerStorage implements CompactableLedgerStorage 
 
     private final long maxReadAheadBytesSize;
 
+    // SingleDirectoryDbLedgerStorage 相当于 DbLedgerStorage 的子类，每一个 Ledger 目录都拥有一个单独的 SingleDirectoryDbLedgerStorage 对象
     public SingleDirectoryDbLedgerStorage(ServerConfiguration conf, LedgerManager ledgerManager,
             LedgerDirsManager ledgerDirsManager, LedgerDirsManager indexDirsManager, StateManager stateManager,
             CheckpointSource checkpointSource, Checkpointer checkpointer, StatsLogger statsLogger,
@@ -164,9 +165,10 @@ public class SingleDirectoryDbLedgerStorage implements CompactableLedgerStorage 
                 DEFAULT_MAX_THROTTLE_TIME_MILLIS);
         maxThrottleTimeNanos = TimeUnit.MILLISECONDS.toNanos(maxThrottleTimeMillis);
 
-        if(conf.isOhCacheEnable()){
+        // 内部定制代码，加入了 OHC 的缓存策略
+        if (conf.isOhCacheEnable()) {
             readCache = new OhcReadCache(allocator, readCacheMaxSize);
-        }else {
+        } else {
             readCache = new SegmentReadCache(allocator, readCacheMaxSize);
         }
 
@@ -179,6 +181,7 @@ public class SingleDirectoryDbLedgerStorage implements CompactableLedgerStorage 
                 TransientLedgerInfo.LEDGER_INFO_CACHING_TIME_MINUTES,
                 TransientLedgerInfo.LEDGER_INFO_CACHING_TIME_MINUTES, TimeUnit.MINUTES);
 
+        // LedgerStorage 中获取到的 EntryLogger 是一个新创建出来的对象。
         entryLogger = new EntryLogger(conf, ledgerDirsManager, null, statsLogger, allocator);
         gcThread = new GarbageCollectorThread(conf, ledgerManager, this, statsLogger);
 

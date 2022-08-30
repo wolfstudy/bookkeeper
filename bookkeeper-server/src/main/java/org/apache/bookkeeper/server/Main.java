@@ -204,6 +204,7 @@ public class Main {
         }
     }
 
+    // Bookie Server 的入口函数
     public static void main(String[] args) {
         int retCode = doMain(args);
         Runtime.getRuntime().exit(retCode);
@@ -223,6 +224,7 @@ public class Main {
         // 1. building the component stack:
         LifecycleComponent server;
         try {
+            // 核心逻辑：构建 BookieServer
             server = buildBookieServer(new BookieConfiguration(conf));
         } catch (Exception e) {
             log.error("Failed to build bookie server", e);

@@ -41,6 +41,7 @@ import org.apache.bookkeeper.stats.annotations.StatsDoc;
 
 /**
  * A umbrella class for gc stats.
+ * 记录 GC 回收的监控指标
  */
 @StatsDoc(
     name = BOOKIE_SCOPE,

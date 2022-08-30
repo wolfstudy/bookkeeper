@@ -425,6 +425,8 @@ public class EntryLogger {
      * A thread-local variable that wraps a mapping of log ids to bufferedchannels
      * These channels should be used only for reading. logChannel is the one
      * that is used for writes.
+     *
+     * 每一个 EntryLogID 对应一个 bufferedchannels
      */
     private final ThreadLocal<Map<Long, BufferedReadChannel>> logid2Channel =
             new ThreadLocal<Map<Long, BufferedReadChannel>>() {
@@ -522,6 +524,7 @@ public class EntryLogger {
 
     /**
      * Remove entry log.
+     * 删除原始的 Entry Log 文件
      *
      * @param entryLogId
      *          Entry Log File Id
@@ -536,6 +539,9 @@ public class EntryLogger {
                     + entryLogId + ".log");
             return false;
         }
+        // 调用 File 的文件系统类去删除 EntryLog 文件
+        // 假设删除失败，这里最后还是会继续返回上层删除成功，然后日志记录一下删除失败的日志。
+        // TODO: 假设这里失败，EntryLog 变为了脏数据？
         if (!entryLogFile.delete()) {
             LOG.warn("Could not delete entry log file {}", entryLogFile);
         }
@@ -890,6 +896,8 @@ public class EntryLogger {
         }
     }
 
+    // 每一个 EntryLogID 对应一个 bufferedchannels，getFromChannels 缓存了这种关系，首先通过getFromChannels去缓存
+    // 中寻找 BufferedReadChannel，如果找不到，去磁盘中扫描并填充到缓存logid2FileChannel中来。
     private BufferedReadChannel getChannelForLogId(long entryLogId) throws IOException {
         BufferedReadChannel fc = getFromChannels(entryLogId);
         if (fc != null) {
@@ -973,6 +981,8 @@ public class EntryLogger {
     public void scanEntryLog(long entryLogId, EntryLogScanner scanner) throws IOException {
         // Buffer where to read the entrySize (4 bytes) and the ledgerId (8 bytes)
         ByteBuf headerBuffer = Unpooled.buffer(4 + 8);
+
+        // bufferedchannels 是只读权限的
         BufferedReadChannel bc;
         // Get the BufferedChannel for the current entry log file
         try {
@@ -993,6 +1003,7 @@ public class EntryLogger {
             // Read through the entry log file and extract the ledger ID's.
             while (true) {
                 // Check if we've finished reading the entry log file.
+                // 当 pos 不断递增，超过 BufferedReadChannel 的大小时，说明读取当前 EntryLog 文件的操作已经完成，跳出死循环
                 if (pos >= bc.size()) {
                     break;
                 }
@@ -1006,6 +1017,7 @@ public class EntryLogger {
                 long ledgerId = headerBuffer.readLong();
                 headerBuffer.clear();
 
+                // 调用 scanner 的 accept() 方法
                 if (ledgerId == INVALID_LID || !scanner.accept(ledgerId)) {
                     // skip this entry
                     pos += entrySize;
@@ -1026,6 +1038,7 @@ public class EntryLogger {
                     return;
                 }
                 // process the entry
+                // 调用 scanner 的 process() 方法，将 entry 写入新的 EntryLog 中
                 scanner.process(ledgerId, offset, data);
 
                 // Advance position to the next entry

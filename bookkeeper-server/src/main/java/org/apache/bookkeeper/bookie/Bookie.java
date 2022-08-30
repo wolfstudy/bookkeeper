@@ -650,6 +650,7 @@ public class Bookie extends BookieCriticalThread {
 
     private static LedgerStorage buildLedgerStorage(ServerConfiguration conf) throws IOException {
         // Instantiate the ledger storage implementation
+        // 从 Bookie 配置文件中获取对应的 ledgerStorageClass
         String ledgerStorageClass = conf.getLedgerStorageClass();
         LOG.info("Using ledger storage: {}", ledgerStorageClass);
         return LedgerStorageFactory.createLedgerStorage(ledgerStorageClass);
@@ -775,6 +776,7 @@ public class Bookie extends BookieCriticalThread {
         this.entryLogPerLedgerEnabled = conf.isEntryLogPerLedgerEnabled();
         CheckpointSource checkpointSource = new CheckpointSourceList(journals);
 
+        // 初始化ledgerStorage
         ledgerStorage = buildLedgerStorage(conf);
 
         boolean isDbLedgerStorage = ledgerStorage instanceof DbLedgerStorage;

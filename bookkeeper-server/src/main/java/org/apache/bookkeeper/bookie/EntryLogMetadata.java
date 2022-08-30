@@ -34,7 +34,10 @@ public class EntryLogMetadata {
     private final long entryLogId; // entry log 的 ID，是预生成的（preallocatedLogId）
     private long totalSize; // 总大小
     private long remainingSize; // 剩余大小
-    private final ConcurrentLongLongHashMap ledgersMap; // 记录 LedgerID 以及对应 Ledger 大小
+    // 有两个作用:
+    // 1. 记录 LedgerID 以及对应 Ledger 大小
+    // 2. 记录当前 EntryLog 中 Ledgers 的列表
+    private final ConcurrentLongLongHashMap ledgersMap;
 
     public EntryLogMetadata(long logId) {
         this.entryLogId = logId;
@@ -43,12 +46,14 @@ public class EntryLogMetadata {
         ledgersMap = new ConcurrentLongLongHashMap(256, 1);
     }
 
+    // 往 ledgersMap 中新增元素
     public void addLedgerSize(long ledgerId, long size) {
         totalSize += size;
         remainingSize += size;
         ledgersMap.addAndGet(ledgerId, size);
     }
 
+    // 判断某一个 LedgerID 是否在 ledgersMap 中
     public boolean containsLedger(long ledgerId) {
         return ledgersMap.containsKey(ledgerId);
     }
@@ -80,6 +85,8 @@ public class EntryLogMetadata {
         return ledgersMap;
     }
 
+    // 从 ledgersMap 中移除对应的 Ledgers
+    // 每次真正的回收 EntryLog 之前, 会先调用 doGcEntryLogs 检查是否有可以回收的 Ledger，有的话，就从本地的 ledgersMap 删除掉。
     public void removeLedgerIf(LongPredicate predicate) {
         ledgersMap.removeIf((ledgerId, size) -> {
             boolean shouldRemove = predicate.test(ledgerId);

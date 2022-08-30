@@ -173,6 +173,7 @@ public class InterleavedLedgerStorage implements CompactableLedgerStorage, Entry
                 stateManager,
                 checkpointSource,
                 checkpointer,
+                // LedgerStorage 中获取到的 EntryLogger 是一个新创建出来的对象。
                 new EntryLogger(conf, ledgerDirsManager, entryLogListener, statsLogger.scope(ENTRYLOGGER_SCOPE),
                         allocator),
                 statsLogger);

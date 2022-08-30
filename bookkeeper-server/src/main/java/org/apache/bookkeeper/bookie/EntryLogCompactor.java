@@ -58,14 +58,18 @@ public class EntryLogCompactor extends AbstractLogCompactor {
     @Override
     public boolean compact(EntryLogMetadata entryLogMeta) {
         try {
+            // 获取开始 compact 的时间
             long start = System.currentTimeMillis();
-            throttler.resetRate();
+            throttler.resetRate(); // 重置压缩速率
+            // 扫描指定的 EntryLog 文件
             entryLogger.scanEntryLog(entryLogMeta.getEntryLogId(),
                 scannerFactory.newScanner(entryLogMeta));
             long scan = System.currentTimeMillis();
+            // 强制把写入的数据刷新到磁盘上去，刷新的时候会同时更新索引信息，以便 broker 下次读取消息的时候，可以去新的 EntryLog 中去读取。
             scannerFactory.flush();
             LOG.info("Removing entry log {} after compaction, scan {}ms ,flush {}ms",
                     entryLogMeta.getEntryLogId(), scan - start, System.currentTimeMillis() - scan);
+            // 移除掉原先旧的EntryLog文件
             logRemovalListener.removeEntryLog(entryLogMeta.getEntryLogId());
         } catch (LedgerDirsManager.NoWritableLedgerDirException nwlde) {
             LOG.warn("No writable ledger directory available, aborting compaction", nwlde);
@@ -82,18 +86,25 @@ public class EntryLogCompactor extends AbstractLogCompactor {
 
     /**
      * A scanner wrapper to check whether a ledger is alive in an entry log file.
+     * 定义一个专门用于日志压缩的 Scanner，来扫描指定的 EntryLog 文件中是否包含活跃的 Ledger
      */
     class CompactionScannerFactory {
+        // EntryLocation：LedgerID + EntryID + location
+        //
+        // offsets List 用来记录 compact 时，写入到新的 EntryLog 文件中时，Entry 的位置在哪里，
+        // 会在 flush 的时候，通过 ledgerStorage 更新索引信息。
         List<EntryLocation> offsets = new ArrayList<EntryLocation>();
 
         EntryLogger.EntryLogScanner newScanner(final EntryLogMetadata meta) {
 
             return new EntryLogger.EntryLogScanner() {
+                // 检查指定的 LedgerID 是否在当前 EntryLog 文件中
                 @Override
                 public boolean accept(long ledgerId) {
                     return meta.containsLedger(ledgerId);
                 }
 
+                // 主要通过读取原先旧的 EntryLog 文件，然后把当前无法删除的 Entry 写入到新的 EntryLog 文件中
                 @Override
                 public void process(final long ledgerId, long offset, ByteBuf entry) throws IOException {
                     throttler.acquire(entry.readableBytes());
@@ -122,6 +133,7 @@ public class EntryLogCompactor extends AbstractLogCompactor {
             // entryLog
             try {
                 entryLogger.flush();
+                // 更新新 EntryLog 文件中 offsets 的信息。
                 ledgerStorage.updateEntriesLocations(offsets);
                 ledgerStorage.flushEntriesLocationsIndex();
             } finally {

@@ -49,6 +49,7 @@ public class BookieService extends ServerLifecycleComponent {
                          Supplier<BookieServiceInfo> bookieServiceInfoProvider)
             throws Exception {
         super(NAME, conf, statsLogger);
+        // 构建BookieServer对象
         this.server = new BookieServer(conf.getServerConf(), statsLogger, bookieServiceInfoProvider);
     }
 

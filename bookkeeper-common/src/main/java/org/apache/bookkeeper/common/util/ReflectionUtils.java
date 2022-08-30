@@ -156,6 +156,8 @@ public class ReflectionUtils {
      * @param xface
      *          The interface implemented by the named class.
      * @return a new object
+     *
+     * 通过反射的方式加载对应的 ledgerStorage
      */
     @SuppressWarnings("unchecked")
     public static <T> T newInstance(String clsName, Class<T> xface) {

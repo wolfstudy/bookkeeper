@@ -218,8 +218,8 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
         // restart the failed bookie
         bs.add(startBookie(bookieConf1));
 
-        waitForLedgerMissingReplicas(lh1.getId(), 10, shutdownBookie);
-        waitForLedgerMissingReplicas(lh2.getId(), 10, shutdownBookie);
+        waitForLedgerMissingReplicas(8049631L, 10, shutdownBookie);
+        waitForLedgerMissingReplicas(8049631L, 10, shutdownBookie);
     }
 
     /**

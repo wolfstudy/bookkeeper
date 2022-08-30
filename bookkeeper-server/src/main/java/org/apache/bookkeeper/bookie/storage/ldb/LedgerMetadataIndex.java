@@ -48,6 +48,8 @@ import org.slf4j.LoggerFactory;
  * Maintains an index for the ledgers metadata.
  *
  * <p>The key is the ledgerId and the value is the {@link LedgerData} content.
+ *
+ * 维护 Ledger 元数据的索引，key 是 LedgerID，value 是 Ledger 的内容
  */
 public class LedgerMetadataIndex implements Closeable {
     // Contains all ledgers stored in the bookie
