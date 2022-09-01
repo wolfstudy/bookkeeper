@@ -340,6 +340,16 @@ public class GarbageCollectorThread extends SafeRunnable {
         }
     }
 
+    // 1，首先调用 doGcLedgers() 获取 Bookie 中所有的 Ledgers，然后从 ledgerIndex 中删除 ledger
+    // 2，其次调用 doGcEntryLogs() 检查 EntryLog 中所有的 Ledgers 是否还在 ledgerIndex 中，然后尝试删除
+    // 3，最后调用 doCompactEntryLogs() 扫描 EntryLog 文件，然后依次整理 EntryLog 中的内容，
+    //        将 EntryLog 中不可以删除的 Entry 写入新的 EntryLog 中，然后将原始的 EntryLog 移除掉。
+    //
+    // 针对于 Ledgers 有如下几层缓存：
+    //  1， ledgerIndex: 是从 Bookie 的 DB 层面扫描所有的 Ledgers 进行缓存
+    //  2， ledgersMap: 每一个 EntryLog 中所有的 Ledgers 的一个缓存
+    //
+    // entryLogMetaMap：是对当前单个 Bookie GC 线程中 EntryLogID -> EntryLogMeta 的一个缓存。一个 Ledger 的文件目录对应一个 entryLogMetaMap。
     public void runWithFlags(boolean force, boolean suspendMajor, boolean suspendMinor) {
         long threadStart = MathUtils.nowInNano();
         if (force) {
@@ -350,9 +360,11 @@ public class GarbageCollectorThread extends SafeRunnable {
 
         // Extract all of the ledger ID's that comprise all of the entry logs
         // (except for the current new one which is still being written to).
+        // 重新构建 entryLogMetaMap 对象
         entryLogMetaMap = extractMetaFromEntryLogs(entryLogMetaMap);
 
         // gc inactive/deleted ledgers
+        // 这个函数会去首先扫描 Bookie 中所有的 Ledgers 然后检查这些 Ledgers 是否可以删除
         doGcLedgers();
 
         // gc entry logs
@@ -422,6 +434,8 @@ public class GarbageCollectorThread extends SafeRunnable {
 
         // Loop through all of the entry logs and remove the non-active ledgers.
         // entryLogMetaMap 这个 Map 记录了整个 EntryLog 从 EntryLogID 到 EntryMeta 的映射关系。
+
+        // 从这里开始迭代所有 entryLogMetaMap，如果删除失败但是返回 true，那么 entryLogMetaMap 中永远没有漏删除掉的 EntryLog，即之后的删除操作永远不会加载那个文件。
         entryLogMetaMap.forEach((entryLogId, meta) -> {
            // 先去看看当前的 EntryLog Meta 中记录的有哪些 ledgers 是可以删除的，这里操作的是 EntryLog Meta 中的 ledgersMap 对象
            removeIfLedgerNotExists(meta);
@@ -444,6 +458,7 @@ public class GarbageCollectorThread extends SafeRunnable {
     }
 
     private void removeIfLedgerNotExists(EntryLogMetadata meta) {
+        // 这个 ledger 是否可以删除，取决于当前这个 Ledger 是否在 ledgerIndex 的集合中存在
         meta.removeLedgerIf((entryLogLedger) -> {
             // Remove the entry log ledger from the set if it isn't active.
             try {
@@ -502,6 +517,9 @@ public class GarbageCollectorThread extends SafeRunnable {
             // 2， (maxTimeMillis > 0 && timeDiff > maxTimeMillis) 看是否达到预设的 GC compaction 最大执行的时间
             // 3， 是否为 running 的状态
             // 所以当 maxTimeMillis 设置为-1时，条件2永远无法为true，即只有达到预设的 GC 阈值才会退出 compactor 的操作
+            //
+            // minorGC: 当使用的大小，大于 20%时，不会清理
+            // majorGC: 当使用的大小，大于 80%时，不会清理
             if (meta.getUsage() >= threshold || (maxTimeMillis > 0 && timeDiff > maxTimeMillis) || !running) {
                 // We allow the usage limit calculation to continue so that we get a accurate
                 // report of where the usage was prior to running compaction.
@@ -578,6 +596,7 @@ public class GarbageCollectorThread extends SafeRunnable {
      */
     protected void removeEntryLog(long entryLogId) {
         // remove entry log file successfully
+        // 如果为true，认为底层的 EntryLog 已经删除成功了
         if (entryLogger.removeEntryLog(entryLogId)) {
             LOG.info("Removing entry log metadata for {}", entryLogId);
             // 如果删除成功，那么从本地的entryLogMetaMap中移除当前 EntryLog 的映射
@@ -626,16 +645,24 @@ public class GarbageCollectorThread extends SafeRunnable {
         // Extract it for every entry log except for the current one.
         // Entry Log ID's are just a long value that starts at 0 and increments
         // by 1 when the log fills up and we roll to a new one.
+
+        // 获取最近一次创建出来的 EntryLog ID
         long curLogId = entryLogger.getLeastUnflushedLogId();
         boolean hasExceptionWhenScan = false;
+
+        // scannedLogId：跟踪上次扫描成功的 EntryLogID，默认的初始值为 0
         for (long entryLogId = scannedLogId; entryLogId < curLogId; entryLogId++) {
             // Comb the current entry log file if it has not already been extracted.
+            // 如果当前 entryLogMetaMap 中已经包含这个 entryLogId，那就直接进入下一次迭代
             if (entryLogMetaMap.containsKey(entryLogId)) {
                 continue;
             }
 
             // check whether log file exists or not
             // if it doesn't exist, this log file might have been garbage collected.
+            // 如果当前的 entryLogId 不存在，那么忽略，直接进入下一次循环
+            // 这是一个关键，需要确认logExists的逻辑，
+            // 这里可以避免 File.delete() 删除失败的case下，重启 Bookie 还是再次有机会重新加载脏 EntryLog
             if (!entryLogger.logExists(entryLogId)) {
                 continue;
             }
@@ -643,15 +670,20 @@ public class GarbageCollectorThread extends SafeRunnable {
             LOG.info("Extracting entry log meta from entryLogId: {}", entryLogId);
 
             try {
-                // Read through the entry log file and extract the entry log meta
+                // Read through the entry log file and extract（提炼） the entry log meta
                 EntryLogMetadata entryLogMeta = entryLogger.getEntryLogMetadata(entryLogId);
+                // 在构建 entryLogMetaMap时，因为也需要扫描一遍所有的 EntryLog 文件，所以扫描的时候，顺便尝试是否有可以删除的 Ledger，
                 removeIfLedgerNotExists(entryLogMeta);
                 if (entryLogMeta.isEmpty()) {
                     entryLogger.removeEntryLog(entryLogId);
                 } else {
+                    // 通过读取 EntryLog 构建entryLogMetaMap
                     entryLogMetaMap.put(entryLogId, entryLogMeta);
                 }
             } catch (IOException e) {
+                // 如果在扫描 EntryLog 的时候，出现错误，那么这个 EntryLog 也会遗留在机器上不会删除，也不会在构建的过程中把这个 EntryLog
+                // 重新添加到 entryLogMetaMap 中。
+                // TODO: 在重新构建 entryLogMetaMap 中可能会造成脏 EntryLog 遗留？
                 hasExceptionWhenScan = true;
                 LOG.warn("Premature exception when processing " + entryLogId
                          + " recovery will take care of the problem", e);

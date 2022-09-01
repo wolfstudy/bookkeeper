@@ -172,6 +172,7 @@ public class SingleDirectoryDbLedgerStorage implements CompactableLedgerStorage 
             readCache = new SegmentReadCache(allocator, readCacheMaxSize);
         }
 
+        // 从 rockesDB 中读取出来的
         ledgerIndex = new LedgerMetadataIndex(conf, KeyValueStorageRocksDB.factory, baseDir, statsLogger);
         entryLocationIndex = new EntryLocationIndex(conf, KeyValueStorageRocksDB.factory, baseDir, statsLogger);
 
@@ -708,6 +709,7 @@ public class SingleDirectoryDbLedgerStorage implements CompactableLedgerStorage 
         checkpointSource.checkpointComplete(cp, true);
     }
 
+    // 删除 ledger
     @Override
     public void deleteLedger(long ledgerId) throws IOException {
         if (log.isDebugEnabled()) {
@@ -849,6 +851,8 @@ public class SingleDirectoryDbLedgerStorage implements CompactableLedgerStorage 
      * @param pages
      *            Iterator over index pages from Indexed
      * @return the number of
+     *
+     * 将 LedgerData 数据填充到 ledgerIndex 中。
      */
     public long addLedgerToIndex(long ledgerId, boolean isFenced, byte[] masterKey,
             LedgerCache.PageEntriesIterable pages) throws Exception {

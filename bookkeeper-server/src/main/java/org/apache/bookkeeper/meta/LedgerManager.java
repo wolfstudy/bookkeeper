@@ -164,6 +164,7 @@ public interface LedgerManager extends Closeable {
         // returned ledgers
         private final SortedSet<Long> ledgers;
 
+        // 构造函数中的 Ledgers 是从 zk 的 metadata 中获取到的
         public LedgerRange(Set<Long> ledgers) {
             this.ledgers = new TreeSet<Long>(ledgers);
         }

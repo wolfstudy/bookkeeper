@@ -58,6 +58,7 @@ public class EntryLogMetadata {
         return ledgersMap.containsKey(ledgerId);
     }
 
+    // remainingSize：剩余了多大的空间
     public double getUsage() {
         if (totalSize == 0L) {
             return 0.0f;

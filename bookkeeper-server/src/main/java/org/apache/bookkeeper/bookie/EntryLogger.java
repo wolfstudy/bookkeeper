@@ -921,6 +921,9 @@ public class EntryLogger {
 
     /**
      * Whether the log file exists or not.
+     *
+     * 判断 EntryLog 是否存在，这里会去扫描当前Bookie节点中所有的 EntryLog 文件，然后判断 EntryLog 是否存在。
+     * 这种判断方式的好处是，可以避免最初调用 File.delete() 方法时，删除失败的情况下，重启 Bookie 还是再次有机会能把脏 Entry Log 重新加载回来的。
      */
     boolean logExists(long logId) {
         for (File d : ledgerDirsManager.getAllLedgerDirs()) {

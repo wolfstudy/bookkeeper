@@ -127,12 +127,14 @@ public class ListActiveLedgersCommand extends BookieCommand<ActiveLedgerFlags>{
             resultCode.set(rs);
             done.countDown();
           };
+          // 从zk中获取的
           ledgerManager.asyncProcessLedgers(ledgerProcessor, endCallback, null,
             BKException.Code.OK, BKException.Code.ReadException);
           if (done.await(cmdFlags.timeout, TimeUnit.MILLISECONDS)){
             if  (resultCode.get() == BKException.Code.OK) {
               EntryLogger entryLogger = new ReadOnlyEntryLogger(bkConf);
               EntryLogMetadata entryLogMetadata = entryLogger.getEntryLogMetadata(cmdFlags.logId);
+              // EntryLog 自己的 LedgersMap
               List<Long> ledgersOnEntryLog = entryLogMetadata.getLedgersMap().keys();
               if (ledgersOnEntryLog.size() == 0) {
                 LOG.info("Ledgers on log file {} is empty", cmdFlags.logId);

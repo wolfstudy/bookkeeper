@@ -398,6 +398,8 @@ public class ServerConfiguration extends AbstractConfiguration<ServerConfigurati
      * Get wait time in millis for garbage collection of overreplicated ledgers.
      *
      * @return gc wait time
+     *
+     * 默认是一天，转换为毫秒
      */
     public long getGcOverreplicatedLedgerWaitTimeMillis() {
         return this.getLong(GC_OVERREPLICATED_LEDGER_WAIT_TIME, TimeUnit.DAYS.toMillis(1));

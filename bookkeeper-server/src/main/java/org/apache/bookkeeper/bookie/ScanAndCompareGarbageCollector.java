@@ -107,6 +107,7 @@ public class ScanAndCompareGarbageCollector implements GarbageCollector {
         this.activeLedgerCounter = 0;
     }
 
+    // 指标信息
     public int getNumActiveLedgers() {
         return activeLedgerCounter;
     }
@@ -121,11 +122,13 @@ public class ScanAndCompareGarbageCollector implements GarbageCollector {
 
         try {
             // Get a set of all ledgers on the bookie
+            // 从 DB 中获取 Bookie 集群中所有的 Ledgers 列表
             NavigableSet<Long> bkActiveLedgers = Sets.newTreeSet(ledgerStorage.getActiveLedgersInRange(0,
                     Long.MAX_VALUE));
             this.activeLedgerCounter = bkActiveLedgers.size();
 
             long curTime = System.currentTimeMillis();
+            // TODO: 检查多余的副本数？
             boolean checkOverreplicatedLedgers = (enableGcOverReplicatedLedger && curTime
                     - lastOverReplicatedLedgerGcTimeMillis > gcOverReplicatedLedgerIntervalMillis);
             if (checkOverreplicatedLedgers) {
@@ -140,9 +143,11 @@ public class ScanAndCompareGarbageCollector implements GarbageCollector {
             }
 
             // Iterate over all the ledger on the metadata store
+            // 从 Zookeeper 中获取Ledger的迭代器
             long zkOpTimeoutMs = this.conf.getZkTimeout() * 2;
             LedgerRangeIterator ledgerRangeIterator = ledgerManager
                     .getLedgerRanges(zkOpTimeoutMs);
+            // 定义一个 Set 集合，暂存从 zk metadata 中获取到的 Ledgers 列表
             Set<Long> ledgersInMetadata = null;
             long start;
             long end = -1;
@@ -150,24 +155,33 @@ public class ScanAndCompareGarbageCollector implements GarbageCollector {
             AtomicBoolean isBookieInEnsembles = new AtomicBoolean(false);
             Versioned<LedgerMetadata> metadata = null;
             while (!done) {
-                start = end + 1;
+                start = end + 1; // 从 0 开始
                 if (ledgerRangeIterator.hasNext()) {
                     LedgerRange lRange = ledgerRangeIterator.next();
                     ledgersInMetadata = lRange.getLedgers();
+                    // 当第一次进来以后，就可以获取到当前批次中最大的那个 Ledgers 的索引是多少
                     end = lRange.end();
                 } else {
+                    // 如果从 zk 中获取到的 Ledgers 迭代器是空的或者已经迭代完所有的 Ledgers，则重置 done 标记，退出循环。
                     ledgersInMetadata = new TreeSet<>();
                     end = Long.MAX_VALUE;
                     done = true;
                 }
 
+                // 拿从 DB 中取出来的所有的 Ledgers 列表对从 zk 中获取到的 Ledgers 列表做 subSet 的操作
+                // 返回从 start（0）到 end 位置的元素构成的新集合，因为这里的 Ledgers Set 集合都是排过序的，所以可以直接这么操作。
                 Iterable<Long> subBkActiveLedgers = bkActiveLedgers.subSet(start, true, end, true);
 
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Active in metadata {}, Active in bookie {}", ledgersInMetadata, subBkActiveLedgers);
                 }
+
+                // 迭代 subBkActiveLedgers 的集合
                 for (Long bkLid : subBkActiveLedgers) {
+                    // 这个判断用来做double check，检查迭代出来的 LedgerID 是否还在 zk 的集合中，如果不在直接跳过，不做处理。
+                    // 以 zk 为标准
                     if (!ledgersInMetadata.contains(bkLid)) {
+                        // 默认为 false
                         if (verifyMetadataOnGc) {
                             isBookieInEnsembles.set(false);
                             metadata = null;
@@ -203,6 +217,8 @@ public class ScanAndCompareGarbageCollector implements GarbageCollector {
                                 continue;
                             }
                         }
+                        // 清理指定的 Ledger ID
+                        // 这个Ledger在 Bookie 中有，在 zk上没有，则删除。
                         garbageCleaner.clean(bkLid);
                     }
                 }

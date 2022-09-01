@@ -53,6 +53,7 @@ import org.slf4j.LoggerFactory;
  */
 public class LedgerMetadataIndex implements Closeable {
     // Contains all ledgers stored in the bookie
+    // 这个是从 DB 中迭代出来的所有 Ledgers 的列表
     private final ConcurrentLongHashMap<LedgerData> ledgers;
     private final AtomicInteger ledgersCount;
 
@@ -79,6 +80,7 @@ public class LedgerMetadataIndex implements Closeable {
                 Entry<byte[], byte[]> entry = iterator.next();
                 long ledgerId = ArrayUtil.getLong(entry.getKey(), 0);
                 LedgerData ledgerData = LedgerData.parseFrom(entry.getValue());
+                // 写入 ledgers 的 map 中
                 ledgers.put(ledgerId, ledgerData);
                 ledgersCount.incrementAndGet();
             }
